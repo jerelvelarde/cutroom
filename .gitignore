@@ -5,3 +5,18 @@
 node_modules/
 .venv/
 __pycache__/
+dist/
+.cutroom/
+*.log
+# Personal media and screenshots must never enter the public repository.
+*.mp4
+*.mov
+*.m4v
+*.webm
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.heic
+*.heif
+*.zip
