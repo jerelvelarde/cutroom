@@ -1,0 +1,899 @@
+/* Cutroom's operating interface: media first, quiet controls, visible state. */
+:root {
+  --ink: #20242b;
+  --muted: #646d78;
+  --line: #e4e7eb;
+  --canvas: #f5f6f8;
+  --accent: #245fe8;
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #fff;
+}
+body {
+  font-size: 14px;
+}
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
+}
+button {
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+summary:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid #86aaff;
+  outline-offset: 3px;
+}
+button:disabled {
+  opacity: 0.45;
+}
+.app-shell {
+  max-width: none;
+}
+.app-header {
+  height: 64px;
+  margin: 0;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--line);
+}
+.brand {
+  font-size: 28px;
+  letter-spacing: -1px;
+}
+.local-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.settings-button {
+  font-size: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 10px;
+}
+.status-dot {
+  width: 7px;
+  height: 7px;
+}
+.status-dot.verified {
+  background: #378158;
+}
+main {
+  margin: 0 24px;
+}
+.workspace-heading {
+  height: 86px;
+  margin: 0;
+  gap: 20px;
+}
+.workspace-heading h1 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.55px;
+}
+.workspace-heading p {
+  font-size: 12px;
+  margin-top: 6px;
+  color: var(--muted);
+}
+.source-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.button {
+  font-size: 12px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 7px;
+}
+.primary {
+  background: var(--accent);
+}
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.icon-button:hover {
+  background: var(--canvas);
+}
+.banner {
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+.workbench {
+  height: calc(100dvh - 190px);
+  min-height: 560px;
+  display: grid;
+  grid-template-columns: 212px minmax(390px, 1fr) 350px;
+  gap: 24px;
+  align-items: stretch;
+}
+.library {
+  height: 100%;
+  max-height: none;
+  padding-right: 16px;
+  overflow: auto;
+  border-right: 1px solid var(--line);
+  scrollbar-width: thin;
+}
+.library .section-heading {
+  margin: 0 0 12px;
+  align-items: center;
+}
+.library .section-heading h2 {
+  font-size: 14px;
+}
+.library .search-input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 8px;
+  margin-top: 10px;
+}
+.library .search-input input {
+  width: 100%;
+  font-size: 12px;
+  padding: 8px 0;
+}
+.library .library-help {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+.library .asset-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 9px;
+  padding: 3px;
+}
+.asset-image {
+  border-radius: 7px;
+  aspect-ratio: 0.85;
+}
+.library .asset-image {
+  aspect-ratio: 0.85;
+}
+.library .asset-info h3 {
+  font-size: 11px;
+}
+.library .asset-info small {
+  font-size: 10px;
+  color: #65707c;
+}
+.select-asset {
+  width: 19px;
+  height: 19px;
+  left: 7px;
+  top: 7px;
+}
+.asset-type {
+  font-size: 10px;
+  padding: 3px 4px;
+  bottom: 6px;
+  right: 6px;
+}
+.editor {
+  height: 100%;
+  min-width: 0;
+  padding: 0 4px 24px 0;
+  border: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.workspace-tabs {
+  margin: 0 0 18px;
+  gap: 24px;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 2;
+}
+.workspace-tabs button {
+  padding: 0 0 12px;
+  font-size: 13px;
+}
+.workspace-tabs button.active {
+  color: var(--ink);
+  font-weight: 600;
+  border-color: var(--ink);
+}
+.editor > .section-heading {
+  margin: 0 0 12px;
+  min-height: 28px;
+}
+.editor > .section-heading h2 {
+  font-size: 16px;
+  font-weight: 600;
+}
+.editor > .section-heading > span {
+  font-size: 11px;
+}
+.export-row {
+  margin: 0 0 16px;
+}
+.export-row select {
+  font-size: 12px;
+  border-radius: 7px;
+  padding: 7px 10px;
+  max-width: none;
+}
+.composition-bar {
+  border: 0;
+  background: #252b33;
+  color: #bbc3ce;
+  padding: 11px 15px;
+  font-size: 11px;
+  border-radius: 8px 8px 0 0;
+}
+.composition-stage {
+  height: clamp(300px, 42vh, 460px);
+  padding: 14px;
+  background: #171d25;
+  border-radius: 0 0 8px 8px;
+}
+.timeline-heading {
+  font-size: 12px;
+  margin-top: 20px;
+}
+.shot-timeline {
+  height: 70px;
+  padding: 3px 2px;
+  gap: 5px;
+}
+.shot-timeline small,
+.shot-timeline span {
+  font-size: 10px;
+}
+.shot-timeline .selected-shot {
+  outline-color: var(--accent);
+}
+.shot-inspector {
+  padding: 16px 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  margin-top: 18px;
+}
+.inspector-title {
+  font-size: 13px;
+}
+.inspector-title > span {
+  font-size: 11px;
+}
+.inspector-title button {
+  min-width: 28px;
+  min-height: 28px;
+}
+.source-color {
+  font-size: 11px;
+  margin: 6px 0 14px;
+}
+.trim-controls label {
+  font-size: 12px;
+}
+.trim-controls input,
+.trim-controls select {
+  font-size: 12px;
+  min-height: 34px;
+}
+.color-controls {
+  border-top: 1px solid var(--line);
+  padding-top: 13px;
+}
+.color-controls summary {
+  font-size: 13px;
+}
+.color-controls summary span {
+  font-size: 11px;
+}
+.grade-sliders label {
+  font-size: 12px;
+}
+.grade-sliders output {
+  font-size: 11px;
+}
+.draft-note {
+  font-size: 11px;
+  line-height: 1.6;
+}
+.draft-actions > button:first-child {
+  font-size: 12px;
+}
+.new-reel-controls {
+  border-top: 1px solid var(--line);
+  margin-top: 22px;
+  padding-top: 16px;
+}
+.new-reel-controls > summary {
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.new-reel-controls > summary:after {
+  content: "+";
+  margin-left: auto;
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.new-reel-controls[open] > summary:after {
+  content: "−";
+}
+.story-controls {
+  margin-top: 16px;
+}
+.story-controls label,
+.date-controls label {
+  font-size: 12px;
+}
+.eligible-note,
+.direction summary,
+.activity summary,
+.history-select {
+  font-size: 12px;
+}
+.history-select {
+  margin-top: 18px;
+}
+.process-event {
+  font-size: 12px;
+}
+.process-event p {
+  font-size: 12px;
+}
+.copilot-panel {
+  position: relative;
+  top: auto;
+  height: 100%;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: none;
+}
+.copilot-title {
+  padding: 18px 16px 10px;
+}
+.copilot-title h2 {
+  font-size: 14px;
+}
+.copilot-title > span:last-child {
+  font-size: 11px;
+}
+.copilot-context {
+  font-size: 12px;
+  color: var(--muted);
+  padding-bottom: 15px;
+}
+.copilot-panel .copilotKitChat {
+  font-size: 14px;
+}
+.copilot-panel .copilotKitMessage {
+  font-size: 14px;
+  line-height: 1.65;
+}
+.copilot-panel .copilotKitChatInput textarea {
+  font-size: 13px;
+}
+.copilot-tool-receipt {
+  background: #f5f7fb;
+  border: 0;
+  border-radius: 7px;
+  padding: 13px;
+}
+.copilot-tool-receipt > p {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.copilot-tool-receipt > small {
+  font-size: 11px;
+}
+.tool-activity {
+  font-size: 12px;
+}
+.tool-call p,
+.decision-note p {
+  font-size: 11px;
+  color: #566273;
+}
+.tool-call > span {
+  font-size: 10px;
+}
+.tool-call pre {
+  font-size: 10px;
+}
+.current-activity {
+  padding-bottom: 12px;
+  max-height: 170px;
+}
+.current-activity .tool-activity {
+  margin-top: 10px;
+}
+footer {
+  height: 40px;
+  margin: 0;
+  padding: 0 24px;
+  border: 0;
+  align-items: center;
+  font-size: 11px;
+}
+footer details {
+  z-index: 4;
+  background: #fff;
+}
+footer details[open] {
+  position: fixed;
+  bottom: 10px;
+  right: 24px;
+  border: 1px solid var(--line);
+  padding: 16px;
+  border-radius: 8px;
+}
+footer a,
+footer button {
+  font-size: 12px;
+}
+.review-panel {
+  font-size: 12px;
+}
+.review-panel .check-item strong {
+  font-size: 12px;
+}
+.review-panel .check-item small {
+  font-size: 11px;
+}
+.review-footnote {
+  font-size: 11px;
+}
+@media (min-width: 1500px) {
+  .workbench {
+    grid-template-columns: 245px minmax(420px, 1fr) 390px;
+    gap: 30px;
+  }
+  .library .asset-info h3 {
+    font-size: 12px;
+  }
+  .composition-stage {
+    height: clamp(350px, 48vh, 540px);
+  }
+}
+@media (max-width: 1180px) {
+  .workbench {
+    grid-template-columns: 170px minmax(330px, 1fr) 315px;
+    gap: 16px;
+  }
+  .library {
+    padding-right: 12px;
+  }
+  .library .asset-grid {
+    grid-template-columns: 1fr;
+  }
+  .library .asset-image {
+    aspect-ratio: 1.2;
+  }
+  .composition-stage {
+    height: 340px;
+  }
+  .local-label {
+    display: none;
+  }
+}
+@media (max-width: 980px) {
+  .workbench {
+    height: auto;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+  .library {
+    grid-column: 1/3;
+    max-height: 190px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 0 0 14px;
+  }
+  .library .section-heading {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 20px;
+  }
+  .library .search-input {
+    width: 200px;
+    margin: 0;
+  }
+  .library .library-help {
+    display: none;
+  }
+  .library .asset-grid {
+    display: flex;
+    gap: 12px;
+    overflow: auto;
+  }
+  .library .asset-card {
+    width: 100px;
+    min-width: 100px;
+  }
+  .library .asset-image {
+    height: 88px;
+    aspect-ratio: auto;
+  }
+  .editor {
+    overflow: visible;
+  }
+  .copilot-panel {
+    position: sticky;
+    top: 12px;
+    height: calc(100dvh - 24px);
+    min-height: 500px;
+  }
+  footer {
+    margin-top: 20px;
+    height: auto;
+    padding-bottom: 16px;
+  }
+}
+@media (max-width: 700px) {
+  main {
+    margin: 0 16px;
+  }
+  .app-header {
+    padding: 0 16px;
+  }
+  .settings-button {
+    font-size: 11px;
+  }
+  .workspace-heading {
+    height: auto;
+    min-height: 112px;
+    align-items: flex-start;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px 0;
+  }
+  .workspace-heading h1 {
+    font-size: 21px;
+  }
+  .source-actions {
+    flex-wrap: wrap;
+  }
+  .workbench {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .library {
+    height: 190px;
+    width: 100%;
+  }
+  .editor {
+    height: auto;
+    width: 100%;
+    padding: 0;
+    border: 0;
+  }
+  .copilot-panel {
+    height: 650px;
+    position: static;
+    min-height: 500px;
+    width: 100%;
+  }
+  .composition-stage {
+    height: 400px;
+  }
+  .app-header .brand {
+    font-size: 25px;
+  }
+  .grade-sliders {
+    grid-template-columns: 1fr 1fr;
+  }
+  footer {
+    font-size: 10px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .export-row {
+    gap: 8px;
+  }
+  .composition-bar {
+    font-size: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *:before,
+  *:after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+.planner-heading {
+  margin-bottom: 16px;
+}
+.planner-heading h2 {
+  font-size: 16px;
+}
+.planner-heading p {
+  font-size: 12px;
+}
+.day-planner > textarea {
+  font-size: 13px;
+  background: #f8f9fb;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 12px;
+  resize: vertical;
+}
+.story-lead {
+  margin: 24px 0;
+}
+.format-label {
+  font-size: 12px;
+  color: #52674c;
+}
+.story-lead h2 {
+  font-size: 26px;
+  line-height: 1.18;
+  font-weight: 600;
+  letter-spacing: -0.6px;
+  margin: 10px 0 14px;
+  max-width: 28ch;
+}
+.story-lead > p {
+  font-size: 13px;
+  line-height: 1.75;
+  color: #5e6773;
+  max-width: 70ch;
+}
+.story-evidence {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #647083;
+}
+.story-evidence summary {
+  cursor: pointer;
+}
+.story-evidence p {
+  font-size: 12px;
+  line-height: 1.7;
+  margin-top: 9px;
+}
+.plan-views {
+  display: flex;
+  gap: 18px;
+  border-bottom: 1px solid var(--line);
+  margin: 20px 0 16px;
+}
+.plan-views button {
+  font-size: 12px;
+  padding: 0 0 10px;
+  color: var(--muted);
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  border-bottom: 2px solid transparent;
+}
+.plan-views button.active {
+  border-color: var(--ink);
+  color: var(--ink);
+  font-weight: 600;
+}
+.sequence-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px 12px;
+}
+.sequence-grid button {
+  text-align: left;
+  padding: 0;
+  min-width: 0;
+}
+.sequence-grid button > div {
+  position: relative;
+  aspect-ratio: 4/5;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--canvas);
+  outline: 2px solid transparent;
+  outline-offset: 3px;
+}
+.sequence-grid img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sequence-grid button.active > div {
+  outline-color: var(--accent);
+}
+.sequence-grid button > div > span {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #fff;
+  color: #20242b;
+  padding: 4px 6px;
+  border-radius: 3px;
+}
+.sequence-grid strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 10px;
+}
+.sequence-grid small {
+  display: block;
+  font-size: 11px;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.beat-explanation {
+  display: flex;
+  gap: 20px;
+  background: #f5f7fa;
+  padding: 18px;
+  margin: 24px 0;
+  border-radius: 7px;
+}
+.beat-explanation > span {
+  font:
+    12px ui-monospace,
+    monospace;
+  color: #6b7582;
+  white-space: nowrap;
+  padding-top: 3px;
+}
+.beat-explanation h3 {
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+.beat-explanation p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #5b6573;
+}
+.beat-explanation small {
+  font-size: 12px;
+  display: block;
+  margin-top: 12px;
+  color: #405273;
+}
+.story-action {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.story-action strong {
+  font-size: 13px;
+}
+.story-action p {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+.angle-list details {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.angle-list summary {
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+  list-style: none;
+}
+.angle-list summary > span {
+  flex: 1;
+}
+.angle-list summary > small {
+  font-size: 11px;
+  color: #6a7380;
+}
+.angle-list summary > .strong-fit {
+  color: #39784b;
+}
+.angle-list p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.75;
+  margin-top: 10px;
+}
+.angle-list details > small {
+  font-size: 12px;
+  display: block;
+  line-height: 1.7;
+  margin-top: 10px;
+}
+.caption-section {
+  margin: 24px 0;
+  font-size: 13px;
+}
+.caption-section summary {
+  cursor: pointer;
+}
+.caption-section h4 {
+  font-size: 12px;
+  margin: 18px 0 8px;
+}
+.caption-section p {
+  font-size: 13px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  color: var(--muted);
+}
+.storyboard-frame,
+.storyboard-code {
+  height: 560px;
+}
+.generated-code-note {
+  font-size: 11px;
+}
+@media (max-width: 700px) {
+  .sequence-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .story-lead h2 {
+    font-size: 25px;
+  }
+  .story-action {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .plan-views {
+    gap: 16px;
+  }
+  .plan-views button {
+    font-size: 11px;
+  }
+}
+.receipt-brief {
+  margin: 10px 0;
+  font-size: 12px;
+  color: #596575;
+}
+.receipt-brief summary {
+  cursor: pointer;
+}
+.receipt-brief p {
+  font-size: 12px;
+  line-height: 1.65;
+  margin-top: 8px;
+}
+.copilotKitAssistantMessage p,
+.copilotKitUserMessage p {
+  font-size: 14px;
+  line-height: 1.7;
+}
+::selection {
+  background: #dbe7ff;
+  color: #182e59;
+}
+input,
+textarea {
+  caret-color: var(--accent);
+}

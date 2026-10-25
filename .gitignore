@@ -8,7 +8,7 @@ __pycache__/
 dist/
 .cutroom/
 *.log
-# Personal media and screenshots must never enter the public repository.
+# Raw personal media remains private. Only explicitly approved demo screenshots are included.
 *.mp4
 *.mov
 *.m4v
@@ -20,3 +20,6 @@ dist/
 *.heic
 *.heif
 *.zip
+
+# Creator-approved public product screenshots.
+!docs/screenshots/*.png

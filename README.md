@@ -1,76 +1,163 @@
 # Cutroom
 
-A local workspace for turning a camera roll into a story, a content plan, and a vertical reel. Built for the Gemini 4 Argon SF Hackathon.
+**Your footage. Your story.** A local creative workspace that turns a day of photos and video into a reviewed reel—with Gemini Argon directing the edit.
 
-Choose a folder on your Mac or an attached SSD. Argon analyzes compact previews, proposes a narrative, and directs a managed editing loop. FFmpeg and Remotion render the result locally. Keep refining it through a CopilotKit conversation and a visual timeline.
+[Watch the one-minute demo](https://github.com/jerelvelarde/cutroom/releases/tag/v0.1.0-hackathon) · [Run on your Mac](docs/LOCAL-MAC.md) · [Architecture](docs/ADR-001-local-media-managed-editor.md)
 
-## What is included
+![Cutroom editing workspace](docs/screenshots/editor.png)
 
-- **Local media library:** browse mounted folders, index photos and videos, filter by capture date, and keep originals untouched.
-- **Story to reel:** source analysis, shot selection, validated cuts, rendering, visual critique, bounded repairs, and Remotion titles.
-- **Conversational editing:** a self-hosted CopilotKit/AG-UI endpoint, actual tool receipts, editing summaries, and queued revisions from feedback.
-- **Editing workspace:** Remotion Player preview, shot selection, trim, reorder, crop/fit, and per-shot color controls. Render changes to see the updated video.
-- **Color handling:** HDR/HLG/PQ normalization to Rec.709, bounded exposure/contrast/saturation/warmth adjustments, and output color checks.
-- **Plan the day:** compare evidence-supported content angles, recommend a main story and format, arrange source moments, and generate an interactive HTML/CSS/JavaScript storyboard. Generated code runs in a restricted iframe; its source is inspectable.
+## From camera roll to story
 
-This is a hackathon prototype. The newer chat, color-matching, and day-planning paths are included in source but still need complete live end-to-end acceptance testing. See [verification status](docs/VERIFICATION.md).
+1. Connect a local folder or SSD. Optionally import explicitly selected items using Google Photos Picker.
+2. Argon analyzes compact previews, identifies useful moments, and proposes a main story, content angles, hook, caption, and ordered sequence.
+3. Turn the plan into a vertical reel. A managed agent calls real local render, review, repair, and polish tools.
+4. Keep refining through CopilotKit chat or the timeline inspector. See actual tool receipts and review findings, compare versions, and export a new file.
 
-## Run on a Mac
+The story planner also lets Argon write an interactive HTML/CSS explanation. Generated documents run in a sanitized, script-free, network-isolated iframe.
 
-Requirements: Node.js **22.12+**, npm, `ffprobe` on your PATH (provided by an FFmpeg installation), and Google Chrome for Remotion rendering. The app uses the `ffmpeg-static` dependency for media conversion by default.
+![Argon-generated story plan](docs/screenshots/story-plan.png)
 
-```sh
-git clone https://github.com/jerelvelarde/hackathon-gemini-argon.git
-cd hackathon-gemini-argon
-npm ci
-cp .env.example .env
+## What runs where
+
+| Component | Responsibility |
+| --- | --- |
+| Gemini 4 Argon | Multimodal understanding, story planning, editing decisions, and visual review through Google's API |
+| Antigravity Managed Agents | Google-hosted orchestration of the tool loop |
+| CopilotKit + AG-UI | Conversation, selected-shot context, real tool receipts, and ongoing feedback |
+| FFmpeg / ffprobe | Local decode, trim, frame, HDR-to-Rec.709 conversion, grade, assemble, and measure |
+| Remotion | Interactive player and final title treatment; the one-minute product demo |
+| Google Photos Picker | Optional OAuth-based selection and local import; separate Google Cloud client setup required |
+| ElevenLabs | Optional stock-voice narration, preview, and narrated-copy export |
+
+**The model is not running on-device.** Compact previews and metadata are sent to Google for authorized analysis. Rendering and file management run on the Mac. Originals are never overwritten. Narration sends the script to ElevenLabs; credentials stay server-side.
+
+## Agent architecture
+
+Cutroom separates creative judgment from media execution. Google's models choose and critique the edit; a constrained local tool layer validates and executes those decisions. The browser shows the actual conversation, artifacts, and job state.
+
+```mermaid
+flowchart TD
+    USER[Creator: footage, brief and feedback] --> UI[React studio and CopilotKit chat]
+    UI --> API[Local Express API]
+    SSD[Mac or SSD folder] --> INGEST[Metadata, thumbnails and compact proxies]
+    PHOTOS[Optional Google Photos Picker] --> INGEST
+    INGEST --> STORE[Local asset catalog and cached analysis]
+    STORE --> ARGON[Gemini 4 Argon: multimodal understanding]
+    ARGON --> PLAN[Story, shot selection and coded storyboard]
+    PLAN --> AGENT[Antigravity managed agent with Argon]
+    API --> AGENT
+    AGENT --> TOOLS[Constrained local editing tools]
+    TOOLS --> RENDER[FFmpeg rough cut and Remotion polish]
+    RENDER --> REVIEW[Media checks and Argon visual review]
+    REVIEW -->|Repair needed| AGENT
+    REVIEW -->|Reviewed output| EXPORT[Versioned MP4]
+    EXPORT --> UI
+    VOICE[Optional ElevenLabs narration] --> MIX[Local audio mix into a new MP4]
+    EXPORT --> MIX
 ```
 
-Set `GEMINI_API_KEY` in `.env` to your own provisioned key, then:
+### Source understanding and story discovery
+
+`server/source-folder.mjs`, `server/local-files.mjs`, and `server/media.mjs` index media, extract capture dates, and create normalized previews. Linked videos remain on their original drive; photos use a normalized local copy. Date-scoped stories use capture metadata or an explicitly corrected date, rather than silently treating upload time as capture time.
+
+`server/gemini.mjs` calls the Gemini **Interactions API** with server-side credentials. It supports multimodal image/video input, structured JSON responses, background interaction polling, continuation, and cancellation. The defaults are `gemini-4-argon` for the model and `antigravity-preview-09-2026` for the managed agent. These identifiers require appropriate Google account access.
+
+Argon analyzes the visual evidence and recommends useful shots, framing, and narrative roles. With no creative brief, it discovers a supported story and chooses source moments. Cached analysis is reused when available. It is instructed not to invent events, identities, dialogue, or chronology that the footage does not establish.
+
+### The render–review–repair loop
+
+`server/agent.mjs` gives the Google-hosted managed agent a narrow local function interface. The agent does not receive unrestricted shell or filesystem access to the Mac.
+
+| Tool | What it executes | What the agent receives |
+| --- | --- | --- |
+| `render_edit` | Validate a structured timeline, then trim, sequence, frame, grade and render real source media | Rendered version identifier and duration |
+| `review_edit` | Probe and scan the MP4, then have Argon watch a compact review video | Technical checks, timestamped visual issues and repair suggestions |
+| `polish_edit` | Render Remotion titles and optional chapter captions on a reviewed rough cut | A new polished version that must be reviewed again |
+| `finish_edit` | Enforce the final-review requirement and report remaining limitations | `ready` or `needs_review`, with a summary |
+
+Zod validates tool arguments and timeline structure before rendering. Source IDs must exist, cut ranges must fit the source, and shot durations, export duration, framing, and grade values are bounded. Pending function calls are identified by their IDs so completed calls are not repeated when an interaction continues.
+
+The loop allows up to three editorial renders. A successful rough cut receives a finish pass, followed by another review of the **actual final video**. Major remaining defects prevent a clean completion; minor editorial concerns remain visible. A passed review is not a guarantee of aesthetic perfection.
+
+### Conversational editing and version history
+
+`server/chat.mjs` exposes an **AG-UI server-sent event stream** to a self-managed `HttpAgent` in CopilotKit. Argon routes each message into an answer, a story-planning request, an edit, or an explicit stop request. The interface renders genuine tool receipts and concise editing decisions, not fabricated progress or private model reasoning.
+
+Revisions preserve the parent timeline unless the request requires changes. A serialized local job queue prevents overlapping media renders, while chat remains available for further feedback. Prior cuts remain available for comparison and export. Chat history persists in the browser; the asset catalog, cached analysis, plans, runs, and exports persist in the local data directory.
+
+### Generated visual explanations
+
+`server/storyboard.mjs` asks Argon for a main story, editorial angles, hook, caption, ordered source sequence, and self-contained HTML/CSS. Source IDs are validated and replaced with real local thumbnails. Rankings describe editorial fit, not predicted engagement.
+
+Generated markup is sanitized and displayed in an isolated iframe with a restrictive content security policy. Scripts, forms, network access, and access to the parent application are blocked; native disclosure elements provide interaction. Generated code is never executed by the Node server.
+
+### Color management and verification
+
+`server/color.mjs` detects HLG/PQ sources, converts HDR to SDR Rec.709, and applies bounded brightness, contrast, saturation, and warmth adjustments. `server/polish.mjs` preserves explicit Rec.709 metadata after the final Remotion render.
+
+Each review combines deterministic checks—**720 × 1280 dimensions, duration, valid source ranges, no detected black gaps, audio presence, and color metadata**—with Argon's visual assessment of framing, continuity, exposure, white balance, saturation, and title readability. Media measurements and subjective visual judgments are reported separately.
+
+In a real hackathon run, **33 photos and videos** produced a **nine-shot, 30.34-second reel**. One completed version passed all six technical checks and returned no visual issues. A later manual grade preserved the creator's choices while surfacing a minor saturation warning, rather than hiding it to claim a perfect result.
+
+## Technology stack
+
+| Layer | Technology | Purpose |
+| --- | --- | --- |
+| Multimodal reasoning | Gemini 4 Argon | Footage understanding, story discovery, editing decisions, generated visualizations and output critique |
+| Agent orchestration | Google Antigravity Managed Agents + Interactions API | Stateful tool-driven execution, review and repair |
+| Application UI | React 19, Vite 7, Lucide | Local media library, planning canvas, studio and settings |
+| Conversational UI | CopilotKit + AG-UI | Streaming feedback, selected-shot context, tool receipts and job progress |
+| Local server | Node.js 22+, Express 5 | Source access, model calls, job coordination, integration endpoints and exports |
+| Media engine | FFmpeg, ffprobe | Decode, trim, frame, tone-map, grade, encode, mix audio and inspect outputs |
+| Compositions | Remotion Player, Renderer and Bundler | Interactive preview, title treatment and demo composition |
+| Photos and metadata | Sharp, exifr | Photo normalization, thumbnails and capture metadata |
+| Runtime contracts | Zod | Validation at model, tool and API boundaries |
+| Generated-code isolation | sanitize-html, iframe sandbox, CSP | Restricts generated storyboards to display markup and styles |
+| Optional import | Google Photos Picker API + OAuth/PKCE | Imports only explicitly selected photos and videos |
+| Optional voiceover | ElevenLabs JavaScript SDK | Stock synthetic narration and local narrated-copy export |
+| Persistence | Local JSON and media files | Asset catalog, cached analysis, versioned plans and exports |
+| Testing | Node.js built-in test runner | Contracts, media behavior, provider boundaries and isolation |
+
+## Source map
+
+```text
+src/                       React workspace, studio, copilot and integration dialogs
+server/agent.mjs           Managed-agent tool loop and revision queue
+server/chat.mjs            AG-UI conversational endpoint
+server/gemini.mjs          Gemini Interactions API client
+server/storyboard.mjs      Story planning and isolated generated visualization
+server/media.mjs           Ingestion, rendering and technical checks
+server/color.mjs           HDR normalization and bounded grading
+server/polish.mjs          Remotion finish and final color tagging
+server/google-photos*.mjs  OAuth, picker and selected-media import
+server/voiceover.mjs       ElevenLabs generation and local narration mixing
+remotion/                 Reel title and motion composition
+demo/                     One-minute product-demo composition and script
+scripts/                  Rendering and local verification utilities
+tests/                    Automated contracts and integration boundaries
+docs/                     Workflow, architecture, acceptance and event references
+```
+
+## Run locally
+
+Requires Node.js 22.12+, `ffprobe`, and Google Chrome for Remotion. FFmpeg is bundled with the project.
 
 ```sh
+git clone https://github.com/jerelvelarde/cutroom.git
+cd cutroom
+npm install
+cp .env.example .env
+# Set GEMINI_API_KEY in .env (never commit credentials).
 npm run dev
 ```
 
-Open **http://127.0.0.1:4317**. You can also enter a key through the local connection dialog for the current server session. Model and managed-agent access must be available to your account; this repository does not include credentials or grant hackathon credits.
+Open **http://127.0.0.1:4317/**. The server binds to loopback and rejects remote Host headers and cross-origin writes. The hackathon model identifiers require provisioned access; they are configurable in the environment.
 
-1. Choose a folder containing your footage.
-2. Choose **Find the story**, **Today**, or **My SF tech week**, then make a reel.
-3. Review the preview and actual tool activity. Use chat or timeline controls to request revisions.
-4. After at least three moments have analysis, use **Plan the day** for a visual story plan and proposed photo order.
-5. Save a separate MP4 to a folder you choose.
+- [Local folders, reels, and troubleshooting](docs/LOCAL-MAC.md)
+- [Google Photos OAuth setup](docs/GOOGLE-PHOTOS.md)
+- [ElevenLabs voiceover setup](docs/VOICEOVER.md)
 
-For a production-mode local build, run `npm run build`, then `npm start`. Keep this single-user service on loopback; it is not an authenticated hosted application.
-
-## Local and cloud boundaries
-
-| Runs locally | Uses Google's API |
-| --- | --- |
-| Folder access, previews, metadata, FFmpeg processing, Remotion rendering, exports | Argon source understanding, content planning, generated storyboard code, visual review, and managed-agent orchestration |
-
-Argon is **not a locally installed Mac model**. AI operations send compact visual previews and relevant metadata to Google and require internet access. Original files are not edited in place. There is no automatic social publishing.
-
-The API key belongs in ignored `.env` or server memory. `.cutroom/` holds local previews, analysis, storyboards, run history, and exports; chat history is stored in the local browser. These artifacts and personal media are excluded from this repository. Use your own footage; no private demo assets are distributed.
-
-## Architecture
-
-```mermaid
-flowchart LR
-  SSD[Local folder / SSD] --> Library[Local media library]
-  Library --> Argon[Argon analysis and planning]
-  Chat[CopilotKit feedback] --> Agent[Managed editor]
-  Argon --> Agent
-  Agent --> Tools[Validated local editing tools]
-  Tools --> Render[FFmpeg + Remotion]
-  Render --> Review[Technical checks + Argon review]
-  Review --> Agent
-  Review --> Export[Human review and MP4 export]
-  Argon --> Plan[Sandboxed coded storyboard]
-```
-
-`src/` contains the React workspace; `server/` owns local media and API orchestration; `remotion/` contains the reel composition. [Architecture decision](docs/ADR-001-local-media-managed-editor.md).
-
-## Checks and limits
+## Verification and limitations
 
 ```sh
 npm test
@@ -78,8 +165,14 @@ npm run build
 npm run test:media
 ```
 
-The media check creates synthetic footage in `.cutroom/verification/`, detects a deliberate crop defect, repairs it, and renders through Remotion. It does not call Google or use personal assets.
+The test suite covers timeline bounds, color conversion, safe local media handling, generated-document isolation, Google Photos OAuth/import behavior with mocked provider endpoints, and voiceover validation. The media test renders synthetic fixtures without AI. The hackathon demo uses actual footage, actual interface captures, and a real Argon-reviewed reel; it is an edited walkthrough, not a claim that analysis completes in one minute.
 
-Current limits: 100 assets per library, individual videos from 0.5 to 120 seconds, and at most 10 minutes of source video per run. Output is a 720 × 1280 H.264 MP4. Folder rescanning is manual. No Google Photos sync, background watcher, social publishing, or cache-cleanup UI is included. Large frontend bundles remain a prototype performance limitation.
+Prototype limits: 100 assets per library, source clips 0.5–120 seconds, up to 10 minutes of video per edit, 6–60-second reels, 720×1280 reel output. Source analysis is cached; cold analysis takes longer than a cached revision. Manual rescan replaces background file watching. Visual review is model judgment, not a guarantee of editorial quality. No automatic social publishing or multi-user cloud service.
 
-[Mac guide](docs/LOCAL-MAC.md) · [Acceptance checklist](docs/ACCEPTANCE.md) · [Hackathon context](docs/HACKATHON.md) · [Access and resources](docs/RESOURCES.md)
+Google Photos account import requires the user's OAuth client and consent. Integration tests use mock Google endpoints; live account import has not been verified in this build.
+
+## Demo assets
+
+The published screenshots and demo contain the creator's hackathon footage with explicit permission. Raw SSD originals, cached analysis, credentials, and editing history remain excluded from Git. The demo composition is in `demo/Composition.jsx`; `scripts/render-demo.mjs` takes an ignored local manifest of cleared media paths. See [the demo script](demo/SCRIPT.md).
+
+Built during the Gemini Argon hackathon, October 25, 2026. UI refinement follows the [Impeccable design guidance](https://impeccable.style/designing/) and the product's familiar source / canvas / copilot workflow. See [PRODUCT.md](PRODUCT.md) and [DESIGN.md](DESIGN.md).

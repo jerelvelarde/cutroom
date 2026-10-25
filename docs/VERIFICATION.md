@@ -1,5 +1,13 @@
 # Publication verification
 
+## Polished demo update
+
+The subsequent polished build passes all 17 automated tests and the production build. Its 60-second, 1920×1080 demo includes actual interface captures, approved hackathon footage, and 54.56 seconds of ElevenLabs stock-voice narration. Voice playback was checked in the local app. Screenshots show the editor, story planner, generated visualization code, and color review.
+
+Google Photos tests use mocked provider endpoints; live account import still requires OAuth client setup and consent. Source scans excluded configured credential values, raw originals, and private cache files. The screenshots and release video are explicitly approved public media.
+
+## Initial source publication
+
 Checked October 25, 2026 on the isolated source snapshot used for this public update.
 
 | Check | Result |

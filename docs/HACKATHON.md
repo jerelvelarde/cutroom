@@ -1,6 +1,6 @@
 # Gemini 4 Argon SF Hackathon
 
-Research and preparation for the **Cerebral Valley × Google DeepMind** hackathon on **October 25, 2026**, in San Francisco. This document records event research. The repository now also contains the Cutroom prototype; see the root README for setup and current verification status.
+Research and preparation for the **Cerebral Valley × Google DeepMind** hackathon on **October 25, 2026**, in San Francisco. This document is the event-research snapshot. The implemented project is Cutroom; see the repository README for the current product and demo.
 
 **Submission deadline: October 25 at 5:00 PM PDT.** Build a working product in at least one of the two official tracks, make the repository public, and submit an accessible **one-minute demo video**. The live judging demo is approximately **three minutes, without slides**, followed by **one to two minutes of Q&A**. [Participant guide][guide]
 

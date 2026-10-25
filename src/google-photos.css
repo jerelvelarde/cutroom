@@ -1,0 +1,84 @@
+.google-photos-trigger {
+  gap: 7px;
+}
+.google-photos-modal {
+  width: min(560px, calc(100vw - 32px));
+}
+.google-photos-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 12px 0 18px;
+}
+.google-photos-setup {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  padding: 18px;
+  margin-bottom: 20px;
+}
+.google-photos-setup h3 {
+  font-size: 14px;
+}
+.google-photos-setup ol {
+  font-size: 12px;
+  color: var(--muted, #65696f);
+  line-height: 1.8;
+  padding-left: 18px;
+}
+.google-photos-setup li {
+  margin: 8px 0;
+}
+.google-photos-setup a,
+.google-photos-modal .field-note a {
+  color: var(--accent, #1a73e8);
+  text-decoration: underline;
+}
+.google-photos-setup code {
+  display: block;
+  font-size: 11px;
+  padding: 10px;
+  background: #f4f5f7;
+  color: #3d4654;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+  margin-top: 7px;
+  user-select: all;
+}
+.google-photos-setup .field-label {
+  margin-bottom: 15px;
+}
+.google-photos-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 10px 0;
+}
+.google-photos-actions .field-note {
+  width: 100%;
+}
+.google-photos-result {
+  margin: 18px 0;
+  padding: 14px;
+  background: #f7f9fc;
+  border: 1px solid #e3e8ef;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.google-photos-result ul {
+  padding-left: 16px;
+  margin-bottom: 0;
+  max-height: 180px;
+  overflow: auto;
+}
+.google-photos-footer {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--border, #e5e7eb);
+  padding-top: 14px;
+}
+.google-photos-footer button {
+  font-size: 11px;
+  color: var(--muted, #65696f);
+}
