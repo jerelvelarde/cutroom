@@ -4,6 +4,12 @@
 
 [Watch the one-minute demo](https://github.com/jerelvelarde/cutroom/releases/tag/v0.1.0-hackathon) · [Run on your Mac](docs/LOCAL-MAC.md) · [Architecture](docs/ADR-001-local-media-managed-editor.md)
 
+## One-minute demo
+
+https://github.com/user-attachments/assets/c69b345d-0ecd-458b-87f6-cbf929c4a58a
+
+Actual platform footage and Argon-directed edits, narrated with ElevenLabs. [Submission description](docs/SUBMISSION.md) · [Download the video](https://github.com/jerelvelarde/cutroom/releases/download/v0.1.0-hackathon/cutroom-hackathon-demo.mp4)
+
 ![Cutroom editing workspace](docs/screenshots/editor.png)
 
 ## From camera roll to story
