@@ -21,6 +21,8 @@ Actual platform footage and Argon-directed edits, narrated with ElevenLabs. [Sub
 
 Start with **New video**, then ask the editing copilot to create a reel. Chat can create the first video, revise an existing cut, turn a saved story plan into a video, match colors, provide the rendered MP4, open voiceover or save controls, and hide/show the library. The live result follows the actual render and review process. Manual shot controls are available under **Manual adjustments**.
 
+Use **New conversation** above the suggested prompts to clear chat while keeping the current video and library. The previous messages are archived in this browser, and **Undo** restores them until you start another request. **New video** starts both a fresh video workspace and a fresh conversation.
+
 The story planner also lets Argon write an interactive HTML/CSS explanation. Generated documents run in a sanitized, script-free, network-isolated iframe.
 
 ![Argon-generated story plan](docs/screenshots/story-plan.png)

@@ -1,6 +1,8 @@
 import React, {
   createContext,
   useContext,
+  useCallback,
+  useRef,
   useEffect,
   useMemo,
   useState,
@@ -21,6 +23,7 @@ import {
   LoaderCircle,
   Wrench,
   Square,
+  SquarePen,
 } from "lucide-react";
 import "@copilotkit/react-core/v2/styles.css";
 
@@ -175,6 +178,62 @@ function RegisteredChat({ workspaceState, onAction, onError, chatEpoch }) {
   const { copilotkit } = useCopilotKit();
   const [sending, setSending] = useState(false);
   const [suggestion, setSuggestion] = useState(null);
+  const [conversationKey, setConversationKey] = useState(0);
+  const [previousConversation, setPreviousConversation] = useState(null);
+  const lastChatEpoch = useRef(chatEpoch);
+  const resetConversation = useCallback(
+    (allowUndo = true) => {
+      const previous = {
+        messages: [...agent.messages],
+        threadId: agent.threadId,
+      };
+      const nextThreadId = crypto.randomUUID();
+      try {
+        if (previous.messages.length) {
+          localStorage.setItem(
+            `cutroom-chat-archive-${Date.now()}-${previous.threadId}`,
+            JSON.stringify(previous),
+          );
+        }
+        localStorage.setItem("cutroom-chat-v2", "[]");
+        localStorage.setItem("cutroom-chat-thread", nextThreadId);
+      } catch {
+        onError(
+          "Could not save the conversation locally. Free some browser storage and try again; your chat has not been cleared.",
+        );
+        return;
+      }
+      agent.abortRun();
+      agent.threadId = nextThreadId;
+      agent.setMessages([]);
+      setSuggestion(null);
+      setPreviousConversation(allowUndo ? previous : null);
+      setConversationKey((key) => key + 1);
+      onError("");
+    },
+    [agent, onError],
+  );
+  const restoreConversation = () => {
+    if (!previousConversation) return;
+    try {
+      localStorage.setItem(
+        "cutroom-chat-v2",
+        JSON.stringify(previousConversation.messages),
+      );
+      localStorage.setItem(
+        "cutroom-chat-thread",
+        previousConversation.threadId,
+      );
+    } catch {
+      onError("Could not restore the saved conversation. Please try again.");
+      return;
+    }
+    agent.threadId = previousConversation.threadId;
+    agent.setMessages(previousConversation.messages);
+    setPreviousConversation(null);
+    setConversationKey((key) => key + 1);
+    onError("");
+  };
   const { runs } = useContext(WorkspaceContext);
   const activeRun = runs.find((run) => run.id === workspaceState.runId);
   const editing = activeRun && busyStates.has(activeRun.status);
@@ -183,15 +242,10 @@ function RegisteredChat({ workspaceState, onAction, onError, chatEpoch }) {
     [workspaceState.runId, editing, chatEpoch],
   );
   useEffect(() => {
-    if (!chatEpoch) return;
-    try {
-      localStorage.setItem(
-        `cutroom-chat-archive-${Date.now()}`,
-        JSON.stringify(agent.messages),
-      );
-    } catch {}
-    agent.setMessages([]);
-  }, [agent, chatEpoch]);
+    if (chatEpoch === lastChatEpoch.current) return;
+    lastChatEpoch.current = chatEpoch;
+    resetConversation(false);
+  }, [chatEpoch, resetConversation]);
   useEffect(() => {
     const subscription = agent.subscribe({
       onMessagesChanged: ({ messages }) => {
@@ -203,7 +257,10 @@ function RegisteredChat({ workspaceState, onAction, onError, chatEpoch }) {
         const result = parseResult(event.content);
         if (!result.error && (result.runId || result.command)) onAction(result);
       },
-      onRunStartedEvent: () => onError(""),
+      onRunStartedEvent: () => {
+        setPreviousConversation(null);
+        onError("");
+      },
     });
     return () => subscription.unsubscribe();
   }, [agent, onAction, onError]);
@@ -272,6 +329,7 @@ function RegisteredChat({ workspaceState, onAction, onError, chatEpoch }) {
   const send = async (text) => {
     if (agent.isRunning || sending) return;
     setSending(true);
+    setPreviousConversation(null);
     onError("");
     try {
       agent.setState(workspaceState);
@@ -333,6 +391,21 @@ function RegisteredChat({ workspaceState, onAction, onError, chatEpoch }) {
         ];
   return (
     <>
+      <div className="conversation-controls">
+        <button
+          onClick={() => resetConversation()}
+          disabled={sending || agent.isRunning}
+          title="Clear the chat and start fresh. Your current video stays open."
+        >
+          <SquarePen size={14} /> New conversation
+        </button>
+        {previousConversation && (
+          <span role="status">
+            Chat cleared.
+            <button onClick={restoreConversation}>Undo</button>
+          </span>
+        )}
+      </div>
       <div className="copilot-suggestions">
         <div className="suggestion-heading">
           <span>Try asking</span>
@@ -406,6 +479,7 @@ function RegisteredChat({ workspaceState, onAction, onError, chatEpoch }) {
         )}
       </div>
       <CopilotChat
+        key={conversationKey}
         agentId="editor"
         inspectorTools={false}
         labels={{
@@ -485,14 +559,16 @@ export function CopilotPanel({
   const [error, setError] = useState("");
   const agents = useMemo(() => {
     let history = [];
+    let threadId = "cutroom-local-editor";
     try {
       history = JSON.parse(localStorage.getItem("cutroom-chat-v2") || "[]");
+      threadId = localStorage.getItem("cutroom-chat-thread") || threadId;
     } catch {}
     return {
       editor: new HttpAgent({
         url: "/api/copilot",
         agentId: "editor",
-        threadId: "cutroom-local-editor",
+        threadId,
         initialMessages: history,
       }),
     };

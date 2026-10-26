@@ -984,6 +984,36 @@ textarea {
   max-height: 45%;
   overflow-y: auto;
 }
+.conversation-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 14px 12px;
+  flex-shrink: 0;
+}
+.conversation-controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 5px 8px;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.conversation-controls > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.conversation-controls > span button {
+  border: 0;
+  color: #244d95;
+  text-decoration: underline;
+}
 .suggestion-heading {
   display: flex;
   flex-wrap: wrap;
