@@ -1328,13 +1328,6 @@ main {
 .tool-error {
   color: #a12a22 !important;
 }
-.current-activity {
-  padding: 0 16px 14px;
-  max-height: 230px;
-  overflow: auto;
-  border-top: 1px solid #edf0f4;
-  flex-shrink: 0;
-}
 footer {
   margin: 30px 26px 20px;
 }

@@ -419,13 +419,6 @@ main {
 .tool-call pre {
   font-size: 10px;
 }
-.current-activity {
-  padding-bottom: 12px;
-  max-height: 170px;
-}
-.current-activity .tool-activity {
-  margin-top: 10px;
-}
 footer {
   height: 40px;
   margin: 0;
@@ -1131,16 +1124,6 @@ textarea {
 }
 .reel-result .tool-activity {
   margin-top: 14px;
-}
-.copilot-panel .current-activity {
-  flex-shrink: 0;
-  border-top: 1px solid var(--line);
-  padding: 12px 14px;
-  max-height: 200px;
-  overflow: auto;
-}
-.copilot-panel .current-activity .reel-result > p {
-  margin: 6px 0;
 }
 .copilot-panel .form-error button {
   display: block;

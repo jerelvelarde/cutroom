@@ -37,6 +37,15 @@ const busyStates = new Set([
   "reviewing",
   "polishing",
 ]);
+const progressLabels = {
+  queued: "Edit queued",
+  analyzing: "Understanding your footage",
+  editing: "Building your edit",
+  rendering: "Rendering your video",
+  repairing: "Refining your edit",
+  reviewing: "Reviewing your video",
+  polishing: "Polishing your video",
+};
 const parseResult = (result) => {
   try {
     return JSON.parse(result || "{}");
@@ -45,13 +54,13 @@ const parseResult = (result) => {
   }
 };
 
-function ReelResult({ run, onAction, compact = false }) {
+function ReelResult({ run, onAction }) {
   const busy = busyStates.has(run.status);
   const version = run.versions.at(-1);
   const failed = ["failed", "cancelled", "interrupted"].includes(run.status);
   return (
     <div className="reel-result">
-      <div className="result-heading">
+      <div className="result-heading" role="status">
         {busy ? (
           <LoaderCircle size={16} className="spin" />
         ) : run.status === "ready" ? (
@@ -61,7 +70,7 @@ function ReelResult({ run, onAction, compact = false }) {
         )}
         <strong>
           {busy
-            ? run.events.at(-1)?.title || "Queued"
+            ? progressLabels[run.status]
             : run.status === "ready"
               ? "Video ready"
               : run.status === "needs_review"
@@ -114,7 +123,7 @@ function ReelResult({ run, onAction, compact = false }) {
           cut.
         </small>
       )}
-      {!compact && <ToolActivity run={run} />}
+      <ToolActivity run={run} />
     </div>
   );
 }
@@ -607,7 +616,7 @@ export function CopilotPanel({
       </div>
       <p className="copilot-context">
         {run
-          ? `${current?.plan.title || "Video in progress"}${selectedClip !== null && current ? ` · Shot ${selectedClip + 1}` : ""}`
+          ? `${current?.plan.title || "Video in progress"}${busyStates.has(run.status) ? ` · ${progressLabels[run.status]}` : selectedClip !== null && current ? ` · Shot ${selectedClip + 1}` : ""}`
           : `New video · ${assetIds.length || assetCount} ${assetIds.length ? "selected" : "available"} moments · ${targetDuration}s`}
       </p>
       <WorkspaceContext.Provider value={{ runs, onAction }}>
@@ -636,11 +645,6 @@ export function CopilotPanel({
             Dismiss
           </button>
         </p>
-      )}
-      {run && busyStates.has(run.status) && (
-        <div className="current-activity" aria-live="polite">
-          <ReelResult run={run} onAction={onAction} compact />
-        </div>
       )}
     </aside>
   );
