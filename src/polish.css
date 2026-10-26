@@ -977,6 +977,82 @@ textarea {
 .copilot-quick-actions button:hover:not(:disabled) {
   background: var(--canvas);
 }
+.copilot-suggestions {
+  flex-shrink: 0;
+  padding: 0 14px 12px;
+  border-bottom: 1px solid var(--line);
+  max-height: 45%;
+  overflow-y: auto;
+}
+.suggestion-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  align-items: baseline;
+}
+.suggestion-heading > span {
+  font-weight: 600;
+}
+.demo-guide > summary {
+  cursor: pointer;
+  color: #244d95;
+}
+.demo-guide[open] {
+  flex-basis: 100%;
+}
+.demo-guide ol {
+  padding-left: 20px;
+  margin: 12px 0;
+}
+.demo-guide li {
+  margin: 8px 0;
+  line-height: 1.6;
+}
+.demo-guide p,
+.suggestion-hint {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 8px 0 10px;
+}
+.copilot-suggestions .copilot-quick-actions {
+  padding: 0;
+  border: 0;
+}
+.copilot-quick-actions button[aria-pressed="true"] {
+  background: #edf2fa;
+  border-color: #8ea7d5;
+  color: #244d95;
+}
+.suggestion-preview {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--canvas);
+  border-radius: 7px;
+}
+.suggestion-preview p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.suggestion-preview > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+.suggestion-preview button {
+  padding: 8px 12px;
+  min-height: 36px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+.suggestion-preview .suggestion-send {
+  background: #2459e7;
+  color: white;
+}
 .result-heading {
   display: flex;
   align-items: center;

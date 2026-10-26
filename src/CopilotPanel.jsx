@@ -174,6 +174,14 @@ function RegisteredChat({ workspaceState, onAction, onError, chatEpoch }) {
   const { agent } = useAgent({ agentId: "editor" });
   const { copilotkit } = useCopilotKit();
   const [sending, setSending] = useState(false);
+  const [suggestion, setSuggestion] = useState(null);
+  const { runs } = useContext(WorkspaceContext);
+  const activeRun = runs.find((run) => run.id === workspaceState.runId);
+  const editing = activeRun && busyStates.has(activeRun.status);
+  useEffect(
+    () => setSuggestion(null),
+    [workspaceState.runId, editing, chatEpoch],
+  );
   useEffect(() => {
     if (!chatEpoch) return;
     try {
@@ -279,37 +287,119 @@ function RegisteredChat({ workspaceState, onAction, onError, chatEpoch }) {
       setSending(false);
     }
   };
-  const prompts = workspaceState.runId
+  const explain = [
+    "Explain the story",
+    "Explain the main story of this reel, why you chose this shot order, and what makes the opening work. Keep it to three short points for my live demo. Do not change or render anything.",
+  ];
+  const prompts = editing
     ? [
         [
-          "Match colors",
-          "Revise this reel to match colors naturally across shots. Preserve the cuts and keep skin tones natural.",
+          "Explain this edit",
+          "Briefly explain the current editing plan and what has actually finished so far. Do not queue another edit.",
         ],
-        ["Add voiceover", "Open the voiceover controls for this video."],
-        ["Export", "Give me the finished MP4 for this reel."],
+        ["Focus on the video", "Hide the library so I can focus on the video."],
       ]
-    : [
-        [
-          "Create video",
-          `Create a new ${workspaceState.targetDuration}-second video from my ${workspaceState.assetIds.length ? "selected footage" : "library"}. Find the strongest story, render it, review it, and polish the final video.`,
-        ],
-        [
-          "Plan my story",
-          "Plan the main story for this footage and show me a visual storyboard.",
-        ],
-      ];
+    : workspaceState.runId
+      ? [
+          explain,
+          [
+            "Stronger opening",
+            "Revise this reel with a stronger opening using the existing footage. Keep the same duration, preserve natural colors, and render and review the new version.",
+          ],
+          [
+            "Match colors",
+            "Revise this reel to match colors naturally across shots. Preserve the cuts and keep skin tones natural. Render and review the result.",
+          ],
+          ["Add voiceover", "Open the voiceover controls for this video."],
+          ["Download the reel", "Give me the finished MP4 for this reel."],
+        ]
+      : [
+          [
+            "Find the story",
+            "Plan the main story for this footage and show me a visual storyboard. Explain the hook and how to arrange the shots.",
+          ],
+          [
+            "Create a video",
+            `Create a new ${workspaceState.targetDuration}-second video from my ${workspaceState.assetIds.length ? "selected footage" : "library"}. Find the strongest story, render it, review it, and polish the final video.`,
+          ],
+          [
+            "Use my story plan",
+            `Create a new ${workspaceState.targetDuration}-second video using the saved story plan and its shot sequence. Render, review, and polish it.`,
+          ],
+        ];
   return (
     <>
-      <div className="copilot-quick-actions" aria-label="Copilot actions">
-        {prompts.map(([label, prompt]) => (
-          <button
-            key={label}
-            disabled={sending || agent.isRunning}
-            onClick={() => send(prompt)}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="copilot-suggestions">
+        <div className="suggestion-heading">
+          <span>Try asking</span>
+          <details className="demo-guide">
+            <summary>Live demo guide</summary>
+            <ol>
+              <li>
+                <strong>Story.</strong> Start a New video and choose Find the
+                story.
+              </li>
+              <li>
+                <strong>Create.</strong> Choose Use my story plan, or Create a
+                video for an automatic cut.
+              </li>
+              <li>
+                <strong>Refine.</strong> Try Stronger opening or Match colors.
+                Expand Tool calls & decisions to show real progress.
+              </li>
+              <li>
+                <strong>Deliver.</strong> Play the result, then choose Download
+                the reel.
+              </li>
+            </ol>
+            <p>
+              Short on time? Use the finished reel: Explain the story → play the
+              video → Download the reel. New renders take time.
+            </p>
+          </details>
+        </div>
+        <p className="suggestion-hint">
+          {editing
+            ? "While Argon works, explain the plan and show the live tool calls."
+            : workspaceState.runId
+              ? "Show the story, make one change, then download the result."
+              : "Start with the story, then turn it into a video."}
+        </p>
+        <div className="copilot-quick-actions" aria-label="Suggested prompts">
+          {prompts.map(([label, prompt]) => (
+            <button
+              key={label}
+              aria-pressed={suggestion?.[0] === label}
+              disabled={sending || agent.isRunning}
+              onClick={() =>
+                setSuggestion(
+                  suggestion?.[0] === label ? null : [label, prompt],
+                )
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {suggestion && (
+          <div className="suggestion-preview">
+            <p>{suggestion[1]}</p>
+            <div>
+              <button onClick={() => setSuggestion(null)}>Cancel</button>
+              <button
+                className="suggestion-send"
+                disabled={sending || agent.isRunning}
+                onClick={() => {
+                  const prompt = suggestion[1];
+                  setSuggestion(null);
+                  send(prompt);
+                }}
+              >
+                Send prompt
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       <CopilotChat
         agentId="editor"
