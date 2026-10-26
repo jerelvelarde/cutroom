@@ -1255,7 +1255,7 @@ main {
   margin: 6px 0;
   font-size: 12px;
 }
-.copilot-tool-receipt > div:first-child {
+.copilot-tool-receipt > .result-heading {
   display: flex;
   align-items: center;
   gap: 8px;

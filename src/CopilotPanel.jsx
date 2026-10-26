@@ -10,13 +10,21 @@ import {
   CopilotChat,
   useRenderTool,
   useAgent,
+  useCopilotKit,
 } from "@copilotkit/react-core/v2";
 import { HttpAgent } from "@ag-ui/client";
 import { z } from "zod";
-import { Check, CircleAlert, LoaderCircle, Wrench } from "lucide-react";
+import {
+  ArrowDownToLine,
+  Check,
+  CircleAlert,
+  LoaderCircle,
+  Wrench,
+  Square,
+} from "lucide-react";
 import "@copilotkit/react-core/v2/styles.css";
 
-const RunsContext = createContext([]);
+const WorkspaceContext = createContext({ runs: [] });
 const busyStates = new Set([
   "queued",
   "analyzing",
@@ -26,81 +34,182 @@ const busyStates = new Set([
   "reviewing",
   "polishing",
 ]);
-function ToolReceipt({ result, status, parameters }) {
-  const runs = useContext(RunsContext);
-  let data;
+const parseResult = (result) => {
   try {
-    data = JSON.parse(result || "{}");
+    return JSON.parse(result || "{}");
   } catch {
-    data = {};
+    return {};
   }
-  const run = runs.find((r) => r.id === data.runId);
-  const busy = run && busyStates.has(run.status);
+};
+
+function ReelResult({ run, onAction, compact = false }) {
+  const busy = busyStates.has(run.status);
+  const version = run.versions.at(-1);
+  const failed = ["failed", "cancelled", "interrupted"].includes(run.status);
   return (
-    <div className="copilot-tool-receipt">
-      <div>
-        {busy || !result ? (
-          <LoaderCircle size={15} className="spin" />
-        ) : run?.status === "failed" ? (
-          <CircleAlert size={15} />
+    <div className="reel-result">
+      <div className="result-heading">
+        {busy ? (
+          <LoaderCircle size={16} className="spin" />
+        ) : run.status === "ready" ? (
+          <Check size={16} />
         ) : (
-          <Check size={15} />
+          <CircleAlert size={16} />
         )}
         <strong>
-          {run
-            ? busy
-              ? run.events.at(-1)?.title || "Revision queued"
-              : run.status === "ready"
-                ? "Revision ready"
-                : run.status
-            : "Start revision"}
+          {busy
+            ? run.events.at(-1)?.title || "Queued"
+            : run.status === "ready"
+              ? "Video ready"
+              : run.status === "needs_review"
+                ? "Video needs review"
+                : run.status.replaceAll("_", " ")}
         </strong>
       </div>
+      <p>
+        {busy
+          ? "Your edit continues while you chat. Originals stay untouched."
+          : run.error ||
+            (version
+              ? `${version.plan.title} · ${version.plan.duration.toFixed(0)}s · ${version.plan.clips.length} shots`
+              : "No video was rendered.")}
+      </p>
+      {!busy && version?.review && (
+        <p className="result-review">
+          {version.review.passed
+            ? "Technical and visual review passed."
+            : "Review findings remain. Check the tool results before sharing."}
+        </p>
+      )}
+      <div className="result-actions">
+        <button onClick={() => onAction({ runId: run.id })}>
+          View {busy ? "progress" : "video"}
+        </button>
+        {!busy && version && (
+          <a href={version.url} download={`cutroom-${run.id.slice(0, 8)}.mp4`}>
+            <ArrowDownToLine size={14} /> Download MP4
+          </a>
+        )}
+        {!busy && version && (
+          <button
+            onClick={() => onAction({ runId: run.id, command: "save_reel" })}
+          >
+            Save to folder…
+          </button>
+        )}
+        {busy && (
+          <button
+            onClick={() => onAction({ command: "stop_run", runId: run.id })}
+          >
+            <Square size={12} /> Stop edit
+          </button>
+        )}
+      </div>
+      {failed && (
+        <small>
+          Ask the copilot to create a new video or revise an earlier completed
+          cut.
+        </small>
+      )}
+      {!compact && <ToolActivity run={run} />}
+    </div>
+  );
+}
+function ToolReceipt({ result, parameters }) {
+  const { runs, onAction } = useContext(WorkspaceContext);
+  const data = parseResult(result);
+  const run = runs.find((r) => r.id === data.runId);
+  if (data.error)
+    return (
+      <div className="copilot-tool-receipt tool-error" role="alert">
+        <CircleAlert size={16} /> {data.error}
+      </div>
+    );
+  return (
+    <div className="copilot-tool-receipt">
+      {run ? (
+        <ReelResult run={run} onAction={onAction} />
+      ) : (
+        <div className="result-heading">
+          <LoaderCircle size={15} className="spin" />
+          <strong>{result ? "Loading edit…" : "Starting your video…"}</strong>
+        </div>
+      )}
       <details className="receipt-brief">
         <summary>Editing instructions</summary>
-        <p>{parameters?.feedback}</p>
+        <p>{parameters?.feedback || parameters?.brief}</p>
       </details>
-      {run && (
+    </div>
+  );
+}
+function UtilityReceipt({ result, label }) {
+  const data = parseResult(result);
+  return (
+    <div className={`copilot-tool-receipt ${data.error ? "tool-error" : ""}`}>
+      <strong>
+        {data.error ? "Needs attention" : result ? label : "Working…"}
+      </strong>
+      {data.error && <p>{data.error}</p>}
+      {data.url && (
         <>
-          <small>
-            {run.versions.length} rendered version
-            {run.versions.length === 1 ? "" : "s"}
-          </small>
-          <ToolActivity run={run} expanded />
+          <p>
+            {data.title}
+            {data.reviewPassed
+              ? " · Review passed"
+              : " · Check review findings before sharing"}
+          </p>
+          <a
+            className="button secondary"
+            href={data.url}
+            download="cutroom-reel.mp4"
+          >
+            <ArrowDownToLine size={14} /> Download MP4
+          </a>
         </>
       )}
     </div>
   );
 }
-function RegisteredChat({ workspaceState }) {
+function RegisteredChat({ workspaceState, onAction, onError, chatEpoch }) {
   const { agent } = useAgent({ agentId: "editor" });
+  const { copilotkit } = useCopilotKit();
+  const [sending, setSending] = useState(false);
   useEffect(() => {
-    if (!agent.messages.length) {
-      try {
-        const saved = JSON.parse(
-          localStorage.getItem("cutroom-chat-v2") || "[]",
-        );
-        if (saved.length) agent.setMessages(saved);
-      } catch {}
-    }
+    if (!chatEpoch) return;
+    try {
+      localStorage.setItem(
+        `cutroom-chat-archive-${Date.now()}`,
+        JSON.stringify(agent.messages),
+      );
+    } catch {}
+    agent.setMessages([]);
+  }, [agent, chatEpoch]);
+  useEffect(() => {
     const subscription = agent.subscribe({
       onMessagesChanged: ({ messages }) => {
         try {
           localStorage.setItem("cutroom-chat-v2", JSON.stringify(messages));
         } catch {}
       },
+      onToolCallResultEvent: ({ event }) => {
+        const result = parseResult(event.content);
+        if (!result.error && (result.runId || result.command)) onAction(result);
+      },
+      onRunStartedEvent: () => onError(""),
     });
     return () => subscription.unsubscribe();
-  }, [agent]);
+  }, [agent, onAction, onError]);
   useEffect(() => {
     agent.setState(workspaceState);
-  }, [
-    agent,
-    workspaceState.runId,
-    workspaceState.version,
-    workspaceState.selectedClip,
-  ]);
-
+  }, [agent, workspaceState]);
+  useRenderTool(
+    {
+      name: "create_reel",
+      parameters: z.object({ brief: z.string(), targetDuration: z.number() }),
+      render: (props) => <ToolReceipt {...props} />,
+    },
+    [],
+  );
   useRenderTool(
     {
       name: "edit_reel",
@@ -113,34 +222,109 @@ function RegisteredChat({ workspaceState }) {
     {
       name: "plan_day",
       parameters: z.object({ feedback: z.string() }),
-      render: ({ status, result }) => (
-        <div className="copilot-tool-receipt">
-          <strong>
-            {status === "complete"
-              ? "Day plan saved"
-              : "Planning the story and writing visualization code…"}
-          </strong>
-          <p>
-            {result
-              ? "Open Plan the day to review the visual storyboard and content angles."
-              : "Comparing the available moments and building an evidence-based plan."}
-          </p>
-        </div>
+      render: (props) => <UtilityReceipt {...props} label="Story plan saved" />,
+    },
+    [],
+  );
+  useRenderTool(
+    {
+      name: "export_reel",
+      parameters: z.object({}),
+      render: (props) => <UtilityReceipt {...props} label="Rendered video" />,
+    },
+    [],
+  );
+  useRenderTool(
+    {
+      name: "workspace_action",
+      parameters: z.object({ command: z.string() }),
+      render: (props) => (
+        <UtilityReceipt {...props} label="Workspace updated" />
       ),
     },
     [],
   );
+  useRenderTool(
+    {
+      name: "stop_edit",
+      parameters: z.object({ runId: z.string().nullable() }),
+      render: (props) => (
+        <UtilityReceipt
+          {...props}
+          label={
+            parseResult(props.result).stopped
+              ? "Stop requested"
+              : "No running edit selected"
+          }
+        />
+      ),
+    },
+    [],
+  );
+  const send = async (text) => {
+    if (agent.isRunning || sending) return;
+    setSending(true);
+    onError("");
+    try {
+      agent.setState(workspaceState);
+      agent.addMessage({
+        id: crypto.randomUUID(),
+        role: "user",
+        content: text,
+      });
+      await copilotkit.runAgent({ agent });
+    } catch (e) {
+      onError(e.message);
+    } finally {
+      setSending(false);
+    }
+  };
+  const prompts = workspaceState.runId
+    ? [
+        [
+          "Match colors",
+          "Revise this reel to match colors naturally across shots. Preserve the cuts and keep skin tones natural.",
+        ],
+        ["Add voiceover", "Open the voiceover controls for this video."],
+        ["Export", "Give me the finished MP4 for this reel."],
+      ]
+    : [
+        [
+          "Create video",
+          `Create a new ${workspaceState.targetDuration}-second video from my ${workspaceState.assetIds.length ? "selected footage" : "library"}. Find the strongest story, render it, review it, and polish the final video.`,
+        ],
+        [
+          "Plan my story",
+          "Plan the main story for this footage and show me a visual storyboard.",
+        ],
+      ];
   return (
-    <CopilotChat
-      agentId="editor"
-      inspectorTools={false}
-      labels={{
-        welcomeMessageText: "What would you like to change?",
-        chatInputPlaceholder: "Give feedback on the reel or selected shot…",
-        chatDisclaimerText:
-          "Argon edits locally through constrained media tools.",
-      }}
-    />
+    <>
+      <div className="copilot-quick-actions" aria-label="Copilot actions">
+        {prompts.map(([label, prompt]) => (
+          <button
+            key={label}
+            disabled={sending || agent.isRunning}
+            onClick={() => send(prompt)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <CopilotChat
+        agentId="editor"
+        inspectorTools={false}
+        labels={{
+          welcomeMessageText: workspaceState.runId
+            ? "What would you like to change?"
+            : "What story should we make?",
+          chatInputPlaceholder:
+            "Create a video, adjust a shot, or plan a story…",
+          chatDisclaimerText:
+            "Argon directs the edit. Rendering stays on your Mac.",
+        }}
+      />
+    </>
   );
 }
 export function ToolActivity({ run, expanded = false }) {
@@ -175,7 +359,7 @@ export function ToolActivity({ run, expanded = false }) {
           </details>
         </div>
       ))}
-      {run.events
+      {(run.events || [])
         .filter((e) =>
           ["discovery", "color", "issue", "error"].includes(e.type),
         )
@@ -189,44 +373,74 @@ export function ToolActivity({ run, expanded = false }) {
     </details>
   );
 }
-export function CopilotPanel({ run, current, selectedClip, runs }) {
+export function CopilotPanel({
+  run,
+  current,
+  selectedClip,
+  runs,
+  assetIds,
+  assetCount,
+  targetDuration,
+  storyMode,
+  startDate,
+  endDate,
+  libraryVisible,
+  onAction,
+  chatEpoch,
+}) {
   const [error, setError] = useState("");
   const agents = useMemo(() => {
     let history = [];
     try {
       history = JSON.parse(localStorage.getItem("cutroom-chat-v2") || "[]");
     } catch {}
-    const editor = new HttpAgent({
-      url: "/api/copilot",
-      agentId: "editor",
-      threadId: "cutroom-local-editor",
-      initialMessages: history,
-    });
-    return { editor };
+    return {
+      editor: new HttpAgent({
+        url: "/api/copilot",
+        agentId: "editor",
+        threadId: "cutroom-local-editor",
+        initialMessages: history,
+      }),
+    };
   }, []);
-  useEffect(() => {
-    agents.editor.setState({
-      runId: run?.id,
+  const workspaceState = useMemo(
+    () => ({
+      runId: run?.id || null,
       version: run?.versions.some((v) => v.id === current?.id)
         ? current?.id
         : undefined,
+      selectedClip: current ? selectedClip : null,
+      assetIds,
+      targetDuration,
+      storyMode,
+      startDate,
+      endDate,
+      libraryVisible,
+    }),
+    [
+      run?.id,
+      current?.id,
       selectedClip,
-    });
-  }, [agents, run?.id, current?.id, selectedClip]);
+      assetIds,
+      targetDuration,
+      storyMode,
+      startDate,
+      endDate,
+      libraryVisible,
+    ],
+  );
   return (
-    <aside className="copilot-panel">
+    <aside className="copilot-panel" aria-label="Editing copilot">
       <div className="copilot-title">
-        <span className="status-dot verified" />
         <h2>Editing copilot</h2>
         <span>Argon 4</span>
       </div>
       <p className="copilot-context">
-        {selectedClip !== null && current
-          ? `Discussing shot ${selectedClip + 1} · `
-          : ""}
-        Editing decisions, tool activity, and your feedback.
+        {run
+          ? `${current?.plan.title || "Video in progress"}${selectedClip !== null && current ? ` · Shot ${selectedClip + 1}` : ""}`
+          : `New video · ${assetIds.length || assetCount} ${assetIds.length ? "selected" : "available"} moments · ${targetDuration}s`}
       </p>
-      <RunsContext.Provider value={runs}>
+      <WorkspaceContext.Provider value={{ runs, onAction }}>
         <CopilotKitProvider
           selfManagedAgents={agents}
           agentId="editor"
@@ -235,24 +449,27 @@ export function CopilotPanel({ run, current, selectedClip, runs }) {
           onError={(event) => setError(event.error.message)}
         >
           <RegisteredChat
-            workspaceState={{
-              runId: run?.id,
-              version: run?.versions.some((v) => v.id === current?.id)
-                ? current?.id
-                : undefined,
-              selectedClip,
-            }}
+            workspaceState={workspaceState}
+            onAction={onAction}
+            onError={setError}
+            chatEpoch={chatEpoch}
           />
         </CopilotKitProvider>
-      </RunsContext.Provider>
+      </WorkspaceContext.Provider>
       {error && (
         <p className="form-error" role="alert">
           {error}
+          <button
+            aria-label="Dismiss copilot error"
+            onClick={() => setError("")}
+          >
+            Dismiss
+          </button>
         </p>
       )}
-      {run && (
-        <div className="current-activity">
-          <ToolActivity run={run} />
+      {run && busyStates.has(run.status) && (
+        <div className="current-activity" aria-live="polite">
+          <ReelResult run={run} onAction={onAction} compact />
         </div>
       )}
     </aside>

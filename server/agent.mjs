@@ -134,7 +134,7 @@ export const EDIT_TOOLS = [
           type: "array",
           items: { type: "string" },
           description:
-            "One concise grounded caption per timeline shot, at most 65 characters each.",
+            "One concise grounded caption per timeline shot, at most 65 characters each. For minimal style, use an empty array when no chapter captions are wanted.",
         },
         style: { type: "string", enum: ["editorial", "minimal"] },
         accent: { type: "string", enum: ["#df7857", "#a9bd8e", "#e4c89b"] },
@@ -156,6 +156,15 @@ export const EDIT_TOOLS = [
 ];
 
 const active = new Map();
+export function normalizeCaptions(captions, shotCount, style) {
+  if (style === "minimal" && captions.length === 0)
+    return Array(shotCount).fill("");
+  if (captions.length !== shotCount)
+    throw new Error(
+      "Supply exactly one caption for each timeline shot, or an empty array for minimal style.",
+    );
+  return captions;
+}
 let runs = [];
 export async function loadRuns() {
   runs = await readStore("runs");
@@ -389,8 +398,11 @@ async function handleTool(run, call, assets, client, signal) {
         accent: z.enum(["#df7857", "#a9bd8e", "#e4c89b"]),
       })
       .parse(args);
-    if (design.captions.length !== source.plan.clips.length)
-      throw new Error("Supply exactly one caption for each timeline shot.");
+    design.captions = normalizeCaptions(
+      design.captions,
+      source.plan.clips.length,
+      design.style,
+    );
     run.status = "polishing";
     await event(
       run,
@@ -638,21 +650,19 @@ async function practiceRun(run, assets, signal) {
         revision === 1
           ? "Test case: centered crops deliberately miss off-center fixture subjects."
           : "Reframe each shot around its known subject position.",
-      clips: fixtures
-        .slice(0, 3)
-        .map((asset, index) => ({
-          assetId: asset.id,
-          start: 0,
-          end: run.targetDuration / 3,
-          framing: "crop",
-          focalX: revision === 1 ? 0.5 : asset.fixture.focalX,
-          focalY: 0.5,
-          role: ["Hook", "Movement", "Payoff"][index],
-          reason:
-            revision === 1
-              ? "Deliberately flawed fixture crop"
-              : "Corrected fixture crop",
-        })),
+      clips: fixtures.slice(0, 3).map((asset, index) => ({
+        assetId: asset.id,
+        start: 0,
+        end: run.targetDuration / 3,
+        framing: "crop",
+        focalX: revision === 1 ? 0.5 : asset.fixture.focalX,
+        focalY: 0.5,
+        role: ["Hook", "Movement", "Payoff"][index],
+        reason:
+          revision === 1
+            ? "Deliberately flawed fixture crop"
+            : "Corrected fixture crop",
+      })),
     };
     await event(
       run,
@@ -740,6 +750,7 @@ let runQueue = Promise.resolve();
 export function startRun(
   {
     brief,
+    requestId,
     targetDuration,
     assetIds,
     mode,
@@ -763,6 +774,7 @@ export function startRun(
   const controller = new AbortController();
   const run = {
     id: randomUUID(),
+    requestId,
     brief,
     autonomous: !brief.trim(),
     targetDuration,

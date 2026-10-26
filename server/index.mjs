@@ -81,7 +81,12 @@ await mountGooglePhotos(app, {
 });
 app.post(
   "/api/copilot",
-  chatEndpoint(() => apiKey),
+  chatEndpoint(() => apiKey, {
+    launch: async (body) => {
+      if (ingesting) throw new Error("Wait for the current import to finish.");
+      return launch(body, await readStore("assets"));
+    },
+  }),
 );
 let planning = false;
 app.get("/api/storyboard", async (_req, res) =>
@@ -149,11 +154,9 @@ const state = () => ({
 app.get("/api/config", (_req, res) => res.json(state()));
 app.post("/api/config", (req, res) => {
   if (hasActiveRun())
-    return res
-      .status(409)
-      .json({
-        error: "Wait for the current run before changing the connection.",
-      });
+    return res.status(409).json({
+      error: "Wait for the current run before changing the connection.",
+    });
   if (typeof req.body.apiKey === "string") {
     apiKey = req.body.apiKey.trim();
     verified = false;
@@ -237,8 +240,12 @@ app.patch("/api/assets/:id", async (req, res) => {
 });
 
 async function launch(body, assets) {
+  const duplicate =
+    body.requestId && listRuns().find((r) => r.requestId === body.requestId);
+  if (duplicate) return duplicate;
   const request = z
     .object({
+      requestId: z.string().max(100).optional(),
       brief: z.string().max(2000).default(""),
       targetDuration: z.number().int().min(6).max(60).default(30),
       assetIds: z.array(z.string()).max(100).optional(),
@@ -352,17 +359,15 @@ app.post("/api/assets", (req, res, next) => {
           autoEditError = e.message;
         }
       }
-      res
-        .status(added.length ? 201 : 400)
-        .json({
-          assets: added.map(publicAsset),
-          errors,
-          run,
-          autoEditError,
-          error: !added.length
-            ? errors[0]?.error || "Choose at least one video."
-            : undefined,
-        });
+      res.status(added.length ? 201 : 400).json({
+        assets: added.map(publicAsset),
+        errors,
+        run,
+        autoEditError,
+        error: !added.length
+          ? errors[0]?.error || "Choose at least one video."
+          : undefined,
+      });
     } catch (e) {
       next(e);
     } finally {
@@ -474,13 +479,9 @@ app.use((error, _req, res, _next) => {
     error instanceof z.ZodError
       ? error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")
       : error.message;
-  res
-    .status(error.code === "LIMIT_FILE_SIZE" ? 413 : 400)
-    .json({
-      error: apiKey
-        ? String(message).split(apiKey).join("[redacted]")
-        : message,
-    });
+  res.status(error.code === "LIMIT_FILE_SIZE" ? 413 : 400).json({
+    error: apiKey ? String(message).split(apiKey).join("[redacted]") : message,
+  });
 });
 const server = app.listen(port, "127.0.0.1");
 server.once("listening", () =>

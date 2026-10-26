@@ -104,7 +104,9 @@ export function StudioCanvas({
           />
         ) : (
           <div className="viewer-empty">
-            Choose footage and make your first reel.
+            {busy
+              ? "Your video will appear here after the first render. Follow progress in the editing copilot."
+              : "Describe your video in the editing copilot to start a new render."}
           </div>
         )}
       </div>
@@ -135,144 +137,155 @@ export function StudioCanvas({
               );
             })}
           </div>
+          <p className="shot-context-hint">
+            {selectedClip === null
+              ? "Select a shot to discuss it with the copilot."
+              : `Shot ${index + 1} selected. Tell the copilot what to change.`}
+          </p>
           {clip && (
-            <div className="shot-inspector">
-              <div className="inspector-title">
-                <SlidersHorizontal size={15} />
-                <strong>Shot {index + 1}</strong>
-                <span title={source?.name}>{source?.name}</span>
-                <button
-                  disabled={busy || index === 0}
-                  onClick={() => reorder(-1)}
-                  aria-label="Move shot earlier"
-                >
-                  <ChevronLeft size={15} />
-                </button>
-                <button
-                  disabled={busy || index === clips.length - 1}
-                  onClick={() => reorder(1)}
-                  aria-label="Move shot later"
-                >
-                  <ChevronRight size={15} />
-                </button>
-                <button
-                  disabled={busy || clips.length <= 1}
-                  aria-label="Remove selected shot"
-                  onClick={() => {
-                    setDraft((p) => ({
-                      ...p,
-                      clips: p.clips.filter((_, i) => i !== index),
-                    }));
-                    onSelectClip(Math.max(0, index - 1));
-                    setDirty(true);
-                  }}
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-              <p className="source-color">
-                {source?.colorTreatment ||
-                  (source?.mediaType === "photo"
-                    ? "sRGB photo"
-                    : "Color profile not checked yet")}
-                {source?.color?.dolbyVision ? " · Dolby Vision source" : ""}
-              </p>
-              <div className="trim-controls">
-                <label>
-                  In
-                  <input
-                    aria-label="Source in point"
-                    disabled={busy}
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max={Math.max(0, clip.end - 0.5)}
-                    value={clip.start}
-                    onChange={(e) => patch({ start: Number(e.target.value) })}
-                  />
-                </label>
-                <label>
-                  Out
-                  <input
-                    aria-label="Source out point"
-                    disabled={busy}
-                    type="number"
-                    step="0.1"
-                    min={clip.start + 0.5}
-                    max={source?.duration}
-                    value={clip.end}
-                    onChange={(e) => patch({ end: Number(e.target.value) })}
-                  />
-                </label>
-                <label>
-                  Framing
-                  <select
-                    disabled={busy}
-                    value={clip.framing}
-                    onChange={(e) => patch({ framing: e.target.value })}
+            <details className="manual-shot-controls">
+              <summary>Manual adjustments</summary>
+              <div className="shot-inspector">
+                <div className="inspector-title">
+                  <SlidersHorizontal size={15} />
+                  <strong>Shot {index + 1}</strong>
+                  <span title={source?.name}>{source?.name}</span>
+                  <button
+                    disabled={busy || index === 0}
+                    onClick={() => reorder(-1)}
+                    aria-label="Move shot earlier"
                   >
-                    <option value="crop">Fill frame</option>
-                    <option value="fit">Fit full shot</option>
-                  </select>
-                </label>
-              </div>
-              <details className="color-controls">
-                <summary>
-                  Color <span>After HDR normalization</span>
-                </summary>
-                <div className="grade-sliders">
-                  {[
-                    ["brightness", "Brightness", -0.08, 0.08, 0.005],
-                    ["contrast", "Contrast", 0.85, 1.2, 0.01],
-                    ["saturation", "Saturation", 0.65, 1.25, 0.01],
-                    ["warmth", "Warmth", -0.15, 0.15, 0.01],
-                  ].map(([key, label, min, max, step]) => (
-                    <label key={key}>
-                      {label}
-                      <input
-                        aria-label={label}
-                        disabled={busy}
-                        type="range"
-                        min={min}
-                        max={max}
-                        step={step}
-                        value={grade[key]}
-                        onChange={(e) =>
-                          patch({
-                            grade: { ...grade, [key]: Number(e.target.value) },
-                          })
-                        }
-                      />
-                      <output>{grade[key].toFixed(2)}</output>
-                    </label>
-                  ))}
+                    <ChevronLeft size={15} />
+                  </button>
+                  <button
+                    disabled={busy || index === clips.length - 1}
+                    onClick={() => reorder(1)}
+                    aria-label="Move shot later"
+                  >
+                    <ChevronRight size={15} />
+                  </button>
+                  <button
+                    disabled={busy || clips.length <= 1}
+                    aria-label="Remove selected shot"
+                    onClick={() => {
+                      setDraft((p) => ({
+                        ...p,
+                        clips: p.clips.filter((_, i) => i !== index),
+                      }));
+                      onSelectClip(Math.max(0, index - 1));
+                      setDirty(true);
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
-              </details>
-              <div className="draft-actions">
-                <button
-                  disabled={!dirty || busy}
-                  onClick={() => {
-                    setDraft(structuredClone(current.plan));
-                    setDirty(false);
-                  }}
-                >
-                  <RotateCcw size={13} />
-                  Discard changes
-                </button>
-                <button
-                  className="button secondary"
-                  disabled={!dirty || busy || total < 6 || total > 60}
-                  onClick={() => onApply({ ...draft, duration: total })}
-                >
-                  Render changes
-                </button>
+                <p className="source-color">
+                  {source?.colorTreatment ||
+                    (source?.mediaType === "photo"
+                      ? "sRGB photo"
+                      : "Color profile not checked yet")}
+                  {source?.color?.dolbyVision ? " · Dolby Vision source" : ""}
+                </p>
+                <div className="trim-controls">
+                  <label>
+                    In
+                    <input
+                      aria-label="Source in point"
+                      disabled={busy}
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max={Math.max(0, clip.end - 0.5)}
+                      value={clip.start}
+                      onChange={(e) => patch({ start: Number(e.target.value) })}
+                    />
+                  </label>
+                  <label>
+                    Out
+                    <input
+                      aria-label="Source out point"
+                      disabled={busy}
+                      type="number"
+                      step="0.1"
+                      min={clip.start + 0.5}
+                      max={source?.duration}
+                      value={clip.end}
+                      onChange={(e) => patch({ end: Number(e.target.value) })}
+                    />
+                  </label>
+                  <label>
+                    Framing
+                    <select
+                      disabled={busy}
+                      value={clip.framing}
+                      onChange={(e) => patch({ framing: e.target.value })}
+                    >
+                      <option value="crop">Fill frame</option>
+                      <option value="fit">Fit full shot</option>
+                    </select>
+                  </label>
+                </div>
+                <details className="color-controls">
+                  <summary>
+                    Color <span>After HDR normalization</span>
+                  </summary>
+                  <div className="grade-sliders">
+                    {[
+                      ["brightness", "Brightness", -0.08, 0.08, 0.005],
+                      ["contrast", "Contrast", 0.85, 1.2, 0.01],
+                      ["saturation", "Saturation", 0.65, 1.25, 0.01],
+                      ["warmth", "Warmth", -0.15, 0.15, 0.01],
+                    ].map(([key, label, min, max, step]) => (
+                      <label key={key}>
+                        {label}
+                        <input
+                          aria-label={label}
+                          disabled={busy}
+                          type="range"
+                          min={min}
+                          max={max}
+                          step={step}
+                          value={grade[key]}
+                          onChange={(e) =>
+                            patch({
+                              grade: {
+                                ...grade,
+                                [key]: Number(e.target.value),
+                              },
+                            })
+                          }
+                        />
+                        <output>{grade[key].toFixed(2)}</output>
+                      </label>
+                    ))}
+                  </div>
+                </details>
+                <div className="draft-actions">
+                  <button
+                    disabled={!dirty || busy}
+                    onClick={() => {
+                      setDraft(structuredClone(current.plan));
+                      setDirty(false);
+                    }}
+                  >
+                    <RotateCcw size={13} />
+                    Discard changes
+                  </button>
+                  <button
+                    className="button secondary"
+                    disabled={!dirty || busy || total < 6 || total > 60}
+                    onClick={() => onApply({ ...draft, duration: total })}
+                  >
+                    Render changes
+                  </button>
+                </div>
+                <p className="draft-note">
+                  {dirty
+                    ? "Draft changes are not in the preview yet. Render changes to create a reviewed version."
+                    : "Select a shot to discuss it with Argon or adjust its trim and color."}
+                </p>
               </div>
-              <p className="draft-note">
-                {dirty
-                  ? "Draft changes are not in the preview yet. Render changes to create a reviewed version."
-                  : "Select a shot to discuss it with Argon or adjust its trim and color."}
-              </p>
-            </div>
+            </details>
           )}
         </>
       )}

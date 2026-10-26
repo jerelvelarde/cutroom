@@ -19,6 +19,8 @@ Actual platform footage and Argon-directed edits, narrated with ElevenLabs. [Sub
 3. Turn the plan into a vertical reel. A managed agent calls real local render, review, repair, and polish tools.
 4. Keep refining through CopilotKit chat or the timeline inspector. See actual tool receipts and review findings, compare versions, and export a new file.
 
+Start with **New video**, then ask the editing copilot to create a reel. Chat can create the first video, revise an existing cut, turn a saved story plan into a video, match colors, provide the rendered MP4, open voiceover or save controls, and hide/show the library. The live result follows the actual render and review process. Manual shot controls are available under **Manual adjustments**.
+
 The story planner also lets Argon write an interactive HTML/CSS explanation. Generated documents run in a sanitized, script-free, network-isolated iframe.
 
 ![Argon-generated story plan](docs/screenshots/story-plan.png)

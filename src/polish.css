@@ -897,3 +897,186 @@ input,
 textarea {
   caret-color: var(--accent);
 }
+
+/* Copilot-led creation, with an optional source bin. */
+.library[hidden] {
+  display: none;
+}
+.workbench.library-hidden {
+  grid-template-columns: minmax(0, 1fr) 390px;
+}
+.workspace-tabs .new-video-button {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+}
+.new-video-intro {
+  padding: 36px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.new-video-intro h3 {
+  margin: 0 0 12px;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.new-video-intro p {
+  max-width: 60ch;
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 12px 0;
+  color: var(--muted);
+}
+.new-video-intro label {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  margin: 24px 0 12px;
+}
+.new-video-intro select {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: white;
+  padding: 8px;
+}
+.new-video-intro .new-video-source {
+  font-size: 12px;
+}
+.copilot-title .icon-button {
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+}
+.copilot-title > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.copilot-context {
+  overflow-wrap: anywhere;
+  margin-bottom: 0;
+  padding-bottom: 10px;
+}
+.copilot-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 14px 12px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.copilot-quick-actions button {
+  font-size: 12px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  min-height: 32px;
+}
+.copilot-quick-actions button:hover:not(:disabled) {
+  background: var(--canvas);
+}
+.result-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.result-heading strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.reel-result > p {
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 9px 0;
+  color: #505b69;
+}
+.reel-result > small {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.result-actions button,
+.result-actions a {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  border: 1px solid #d5dde8;
+  border-radius: 6px;
+  padding: 7px 9px;
+  font-size: 12px;
+  color: #244d95;
+  background: #fff;
+  text-decoration: none;
+}
+.result-actions button:hover,
+.result-actions a:hover {
+  background: #edf2fa;
+}
+.reel-result .tool-activity {
+  margin-top: 14px;
+}
+.copilot-panel .current-activity {
+  flex-shrink: 0;
+  border-top: 1px solid var(--line);
+  padding: 12px 14px;
+  max-height: 200px;
+  overflow: auto;
+}
+.copilot-panel .current-activity .reel-result > p {
+  margin: 6px 0;
+}
+.copilot-panel .form-error button {
+  display: block;
+  text-decoration: underline;
+  padding: 5px 0;
+}
+@media (max-width: 1180px) {
+  .workbench.library-hidden {
+    grid-template-columns: minmax(0, 1fr) 350px;
+  }
+}
+@media (max-width: 700px) {
+  .workbench.library-hidden {
+    display: flex;
+  }
+  .new-video-intro {
+    padding: 24px 0;
+  }
+  .workspace-tabs .new-video-button {
+    font-size: 12px;
+  }
+  .copilot-quick-actions button,
+  .result-actions button,
+  .result-actions a {
+    min-height: 40px;
+  }
+}
+.manual-shot-controls {
+  margin-top: 20px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+.manual-shot-controls > summary {
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.manual-shot-controls .shot-inspector {
+  margin-top: 12px;
+}
+.shot-context-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 12px 0;
+}

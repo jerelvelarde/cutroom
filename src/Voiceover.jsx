@@ -16,7 +16,14 @@ async function request(url, body) {
   if (!res.ok) throw new Error(data.error || "Voiceover request failed.");
   return data;
 }
-export function Voiceover({ run, current, busy }) {
+export function Voiceover({
+  run,
+  current,
+  busy,
+  openRequest = 0,
+  showTrigger = true,
+  onRequestHandled,
+}) {
   const [open, setOpen] = useState(false),
     [config, setConfig] = useState(null),
     [key, setKey] = useState(""),
@@ -27,6 +34,12 @@ export function Voiceover({ run, current, busy }) {
     [audio, setAudio] = useState(null),
     [result, setResult] = useState(null);
   const dialog = useRef(null);
+  useEffect(() => {
+    if (openRequest) {
+      setOpen(true);
+      onRequestHandled?.();
+    }
+  }, [openRequest]);
   useEffect(() => {
     if (!open) return;
     dialog.current?.showModal();
@@ -51,10 +64,12 @@ export function Voiceover({ run, current, busy }) {
   };
   return (
     <>
-      <button className="button secondary" onClick={() => setOpen(true)}>
-        <Mic size={15} />
-        Voiceover
-      </button>
+      {showTrigger && (
+        <button className="button secondary" onClick={() => setOpen(true)}>
+          <Mic size={15} />
+          Voiceover
+        </button>
+      )}
       {open && (
         <dialog
           ref={dialog}

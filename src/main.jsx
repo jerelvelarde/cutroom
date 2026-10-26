@@ -7,12 +7,13 @@ import {
   CheckCheck,
   ChevronRight,
   CircleAlert,
-  Film,
   FolderOpen,
-  Image as ImageIcon,
   LoaderCircle,
   LockKeyhole,
   Play,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
   RefreshCw,
   Search,
   Settings2,
@@ -47,7 +48,6 @@ const day = (date = new Date()) =>
 const duration = (seconds) =>
   `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 const today = day();
-const weekAgo = day(new Date(Date.now() - 6 * 86400000));
 
 async function api(url, options = {}) {
   const res = await fetch(url, {
@@ -75,14 +75,21 @@ function App() {
   const [workspace, setWorkspace] = useState("edit"),
     [storyboard, setStoryboard] = useState(null),
     [planning, setPlanning] = useState(false);
-  const [selectedClip, setSelectedClip] = useState(0);
+  const [selectedClip, setSelectedClip] = useState(null);
+  const [libraryVisible, setLibraryVisible] = useState(
+    () => localStorage.getItem("cutroom-library-visible") !== "false",
+  );
+  const [voiceoverRequest, setVoiceoverRequest] = useState(0);
+  const [chatEpoch, setChatEpoch] = useState(0);
+  useEffect(() => {
+    localStorage.setItem("cutroom-library-visible", String(libraryVisible));
+  }, [libraryVisible]);
   const [runId, setRunId] = useState(null),
     [revision, setRevision] = useState(null);
-  const [storyMode, setStoryMode] = useState("discover"),
-    [startDate, setStartDate] = useState(today),
-    [endDate, setEndDate] = useState(today);
-  const [targetDuration, setTargetDuration] = useState(30),
-    [brief, setBrief] = useState("");
+  const storyMode = "discover",
+    startDate = today,
+    endDate = today;
+  const [targetDuration, setTargetDuration] = useState(30);
   const [selected, setSelected] = useState([]),
     [query, setQuery] = useState("");
   const [showConfig, setShowConfig] = useState(false),
@@ -112,7 +119,8 @@ function App() {
     }, 3000);
     return () => clearInterval(timer);
   }, [refresh]);
-  const run = runs.find((r) => r.id === runId) || runs[0];
+  const run =
+    runId === "new" ? null : runs.find((r) => r.id === runId) || runs[0];
   const activeRun = runs.find((r) => BUSY.has(r.status));
   const busy = Boolean(activeRun || pending);
   let previewRun = run;
@@ -136,18 +144,68 @@ function App() {
     }
   }, [runs[0]?.id]);
 
+  const newVideo = useCallback(() => {
+    setChatEpoch((n) => n + 1);
+    setRunId("new");
+    setRevision(null);
+    setSelectedClip(null);
+    setWorkspace("edit");
+  }, []);
+  const copilotAction = useCallback(
+    async (result) => {
+      try {
+        if (result.runId && result.command !== "stop_run") {
+          setRunId(result.runId);
+          setRevision(result.version ?? null);
+          setSelectedClip(null);
+          setWorkspace("edit");
+        }
+        switch (result.command) {
+          case "hide_library":
+            setLibraryVisible(false);
+            break;
+          case "show_library":
+            setLibraryVisible(true);
+            break;
+          case "show_plan":
+            setWorkspace("plan");
+            break;
+          case "show_editor":
+            setWorkspace("edit");
+            break;
+          case "choose_folder":
+            setFolderPicker("source");
+            break;
+          case "save_reel":
+            setFolderPicker("export");
+            break;
+          case "settings":
+            setShowConfig(true);
+            break;
+          case "voiceover":
+            setWorkspace("edit");
+            setVoiceoverRequest((n) => n + 1);
+            break;
+          case "stop_run":
+            await api(`/api/runs/${result.runId}/cancel`, {
+              method: "POST",
+              body: "{}",
+            });
+            break;
+        }
+        await refresh();
+      } catch (e) {
+        setError(e.message);
+      }
+    },
+    [refresh],
+  );
+
   const personal = assets.filter((a) => a.kind !== "fixture");
   const shown = personal.filter((a) =>
     `${a.name} ${a.analysis?.summary || ""}`
       .toLowerCase()
       .includes(query.toLowerCase()),
-  );
-  const eligible = personal.filter(
-    (a) =>
-      storyMode === "discover" ||
-      (a.captureDate &&
-        a.captureDate >= startDate &&
-        a.captureDate <= (storyMode === "today" ? startDate : endDate)),
   );
   const action = async (label, fn) => {
     setError("");
@@ -173,45 +231,6 @@ function App() {
         `${result.folder.count} moments ready. ${result.errors.map((e) => `${e.name}: ${e.error}`).join(" ")}`,
       );
       setFolderPicker(null);
-    });
-  const start = () => {
-    if (!personal.length) {
-      setFolderPicker("source");
-      return;
-    }
-    if (!config.configured) {
-      setShowConfig(true);
-      return;
-    }
-    action("Starting edit…", async () => {
-      const result = await api("/api/runs", {
-        method: "POST",
-        body: JSON.stringify({
-          brief,
-          targetDuration,
-          storyMode,
-          startDate,
-          endDate,
-          ...(selected.length ? { assetIds: selected } : {}),
-        }),
-      });
-      setRunId(result.id);
-      setRevision(null);
-    });
-  };
-  const practice = () =>
-    action("Preparing local test…", async () => {
-      await api("/api/fixtures", { method: "POST", body: "{}" });
-      const result = await api("/api/runs", {
-        method: "POST",
-        body: JSON.stringify({
-          mode: "practice",
-          targetDuration: 15,
-          storyMode: "discover",
-        }),
-      });
-      setRunId(result.id);
-      setRevision(null);
     });
   const exportToFolder = (path) =>
     action("Saving reel…", async () => {
@@ -257,6 +276,19 @@ function App() {
             </p>
           </div>
           <div className="source-actions">
+            <button
+              className="button secondary"
+              aria-expanded={libraryVisible}
+              aria-controls="media-library"
+              onClick={() => setLibraryVisible((v) => !v)}
+            >
+              {libraryVisible ? (
+                <PanelLeftClose size={16} />
+              ) : (
+                <PanelLeftOpen size={16} />
+              )}
+              {libraryVisible ? "Hide library" : "Show library"}
+            </button>
             <GooglePhotos busy={busy} onImported={refresh} />
             <button
               className="button secondary"
@@ -304,8 +336,12 @@ function App() {
             )}
           </div>
         )}
-        <div className="workbench">
-          <section className="library">
+        <div className={`workbench ${libraryVisible ? "" : "library-hidden"}`}>
+          <section
+            className="library"
+            id="media-library"
+            hidden={!libraryVisible}
+          >
             <div className="section-heading">
               <h2>
                 Library <span>{personal.length}</span>
@@ -422,6 +458,9 @@ function App() {
               >
                 Plan the day
               </button>
+              <button className="new-video-button" onClick={newVideo}>
+                <Plus size={14} /> New video
+              </button>
             </nav>
             {workspace === "plan" ? (
               <DayPlanner
@@ -480,7 +519,14 @@ function App() {
                 </div>
                 {current && (
                   <div className="export-row">
-                    <Voiceover run={previewRun} current={current} busy={busy} />
+                    <Voiceover
+                      run={previewRun}
+                      current={current}
+                      busy={busy}
+                      openRequest={voiceoverRequest}
+                      showTrigger={false}
+                      onRequestHandled={() => setVoiceoverRequest(0)}
+                    />
                     <select
                       aria-label="Preview version"
                       value={current.id}
@@ -502,69 +548,18 @@ function App() {
                     </button>
                   </div>
                 )}
-                <StudioCanvas
-                  current={current}
-                  assets={assets}
-                  selectedClip={selectedClip}
-                  onSelectClip={setSelectedClip}
-                  busy={busy}
-                  onApply={(plan) =>
-                    action("Queuing timeline revision…", async () => {
-                      const result = await api(`/api/runs/${run.id}/revise`, {
-                        method: "POST",
-                        body: JSON.stringify({
-                          feedback:
-                            "Apply my manual timeline exactly, including trims, order, framing and color values. Preserve these choices unless a technical validity error requires repair. Keep titles minimal.",
-                          plan,
-                          targetDuration: plan.duration,
-                          selectedClip,
-                          requestId: crypto.randomUUID(),
-                        }),
-                      });
-                      setRunId(result.id);
-                      setRevision(null);
-                    })
-                  }
-                />
-
-                <details
-                  className="new-reel-controls"
-                  open={!current || undefined}
-                >
-                  <summary>
-                    <Sparkles size={15} />
-                    Create another reel
-                  </summary>
-                  <div className="story-controls">
+                {!current && !run && (
+                  <div className="new-video-intro">
+                    <h3>Make something from your day.</h3>
+                    <p>
+                      Tell the copilot the story you want to tell. It will
+                      choose moments, create a cut, review it, and render your
+                      video.
+                    </p>
                     <label>
-                      Story
+                      Video length{" "}
                       <select
-                        aria-label="Story"
-                        disabled={busy}
-                        value={storyMode}
-                        onChange={(e) => {
-                          setStoryMode(e.target.value);
-                          setSelected([]);
-                          if (e.target.value === "week") {
-                            setStartDate(weekAgo);
-                            setEndDate(today);
-                            setTargetDuration(45);
-                          } else if (e.target.value === "today") {
-                            setStartDate(today);
-                            setTargetDuration(30);
-                          }
-                        }}
-                      >
-                        <option value="discover">Find the story</option>
-                        <option value="today">Today</option>
-                        <option value="week">My SF tech week</option>
-                      </select>
-                    </label>
-                    <label>
-                      Length
-                      <select
-                        aria-label="Reel duration"
-                        disabled={busy}
+                        aria-label="New video length"
                         value={targetDuration}
                         onChange={(e) =>
                           setTargetDuration(Number(e.target.value))
@@ -572,112 +567,50 @@ function App() {
                       >
                         {[15, 30, 45, 60].map((n) => (
                           <option key={n} value={n}>
-                            {n} sec
+                            {n} seconds
                           </option>
                         ))}
                       </select>
                     </label>
-                  </div>
-                  {storyMode !== "discover" && (
-                    <div className="date-controls">
-                      <label>
-                        {storyMode === "today" ? "Date" : "From"}
-                        <input
-                          type="date"
-                          value={startDate}
-                          disabled={busy}
-                          onChange={(e) => setStartDate(e.target.value)}
-                        />
-                      </label>
-                      {storyMode === "week" && (
-                        <label>
-                          Through
-                          <input
-                            type="date"
-                            value={endDate}
-                            disabled={busy}
-                            onChange={(e) => setEndDate(e.target.value)}
-                          />
-                        </label>
-                      )}
-                    </div>
-                  )}
-                  {personal.length > 0 && (
-                    <p className="eligible-note">
-                      {eligible.length} eligible moments
-                      {storyMode !== "discover" &&
-                      personal.some((a) => !a.captureDate)
-                        ? " · Click a photo to set a missing date."
-                        : ""}
+                    <p className="new-video-source">
+                      {selected.length
+                        ? `${selected.length} selected moments`
+                        : `${personal.length} moments in your library`}{" "}
+                      · {targetDuration} seconds · Vertical MP4
                     </p>
-                  )}
-                  <details className="direction">
-                    <summary>
-                      Edit direction <span>Optional</span>
-                    </summary>
-                    <textarea
-                      aria-label="Edit direction"
-                      value={brief}
-                      disabled={busy}
-                      onChange={(e) => setBrief(e.target.value)}
-                      maxLength={2000}
-                      placeholder="Start with the city. End with the people."
-                      rows={3}
-                    />
-                  </details>
-                  <button
-                    className="button primary full-width"
-                    disabled={busy}
-                    onClick={start}
-                  >
-                    {activeRun ? (
-                      <LoaderCircle size={16} className="spin" />
-                    ) : (
-                      <Sparkles size={16} />
-                    )}{" "}
-                    {activeRun ? "Making your reel…" : "Make reel"}
-                  </button>
-                </details>
-                {activeRun && (
-                  <div className="active-status" role="status">
-                    <span>{activeRun.events.at(-1)?.title || "Starting"}</span>
-                    <button
-                      onClick={() =>
-                        action("Stopping…", () =>
-                          api(`/api/runs/${activeRun.id}/cancel`, {
-                            method: "POST",
-                            body: "{}",
-                          }),
-                        )
-                      }
-                    >
-                      Stop
-                    </button>
+                    <p>
+                      Try “Create a video about my hackathon day” in the editing
+                      copilot.
+                    </p>
                   </div>
+                )}
+                {(current || run) && (
+                  <StudioCanvas
+                    current={current}
+                    assets={assets}
+                    selectedClip={selectedClip}
+                    onSelectClip={setSelectedClip}
+                    busy={busy}
+                    onApply={(plan) =>
+                      action("Queuing timeline revision…", async () => {
+                        const result = await api(`/api/runs/${run.id}/revise`, {
+                          method: "POST",
+                          body: JSON.stringify({
+                            feedback:
+                              "Apply my manual timeline exactly, including trims, order, framing and color values. Preserve these choices unless a technical validity error requires repair. Keep titles minimal.",
+                            plan,
+                            targetDuration: plan.duration,
+                            selectedClip,
+                            requestId: crypto.randomUUID(),
+                          }),
+                        });
+                        setRunId(result.id);
+                        setRevision(null);
+                      })
+                    }
+                  />
                 )}
 
-                {run?.mode === "practice" && (
-                  <p className="test-label">Synthetic pipeline test · No AI</p>
-                )}
-                {run?.events.length > 0 && (
-                  <details className="activity">
-                    <summary>
-                      Edit activity <span>{run.status.replace("_", " ")}</span>
-                    </summary>
-                    {run.events.slice(-12).map((event) => (
-                      <div className="process-event" key={event.id}>
-                        <strong>{event.title}</strong>
-                        <p>{event.detail}</p>
-                      </div>
-                    ))}
-                    {current?.review && (
-                      <Review
-                        review={current.review}
-                        polished={current.polished}
-                      />
-                    )}
-                  </details>
-                )}
                 {runs.length > 1 && (
                   <label className="history-select">
                     Previous reels
@@ -689,6 +622,7 @@ function App() {
                         setSelectedClip(0);
                       }}
                     >
+                      {!run && <option value="">New video</option>}
                       {runs.map((r) => (
                         <option value={r.id} key={r.id}>
                           {r.versions.at(-1)?.plan.title || "Untitled edit"} ·{" "}
@@ -707,6 +641,15 @@ function App() {
             current={current}
             selectedClip={selectedClip}
             runs={runs}
+            assetIds={selected}
+            assetCount={personal.length}
+            targetDuration={targetDuration}
+            storyMode={storyMode}
+            startDate={startDate}
+            endDate={endDate}
+            libraryVisible={libraryVisible}
+            onAction={copilotAction}
+            chatEpoch={chatEpoch}
           />
         </div>
       </main>
@@ -720,9 +663,6 @@ function App() {
           <a href="/docs/LOCAL-MAC.md" target="_blank" rel="noreferrer">
             Local workflow
           </a>
-          <button disabled={busy} onClick={practice}>
-            Run local pipeline test
-          </button>
         </details>
       </footer>
       {folderPicker && (
@@ -878,62 +818,6 @@ function FolderPicker({ title, initialPath, busy, onClose, onChoose, error }) {
         {busy ? "Working…" : "Use this folder"}
       </button>
     </Modal>
-  );
-}
-
-function Review({ review, polished }) {
-  return (
-    <section className="review-panel panel">
-      <div className="review-heading">
-        <span
-          className={`review-symbol ${review.passed ? "passed" : "attention"}`}
-        >
-          {review.passed ? (
-            <ShieldCheck size={21} />
-          ) : (
-            <CircleAlert size={21} />
-          )}
-        </span>
-        <div>
-          <h2>
-            {polished ? "The final reel, reviewed." : "The cut, checked."}
-          </h2>
-          <p>{review.visual.summary}</p>
-        </div>
-        <span className={`review-badge ${review.passed ? "passed" : ""}`}>
-          {review.passed ? "Checks passed" : "Needs review"}
-        </span>
-      </div>
-      <div className="checks-grid">
-        {review.technical.checks.map((c) => (
-          <div key={c.id} className={`check-item ${c.passed ? "" : "failed"}`}>
-            {c.passed ? <Check size={15} /> : <CircleAlert size={15} />}
-            <div>
-              <strong>{c.label}</strong>
-              <small>{c.detail}</small>
-            </div>
-          </div>
-        ))}
-      </div>
-      {review.visual.issues.length > 0 && (
-        <div className="visual-issues">
-          {review.visual.issues.map((issue, i) => (
-            <div key={i}>
-              <span>{duration(issue.timestamp)}</span>
-              <p>
-                <strong>{issue.description}</strong>
-                {issue.fix}
-              </p>
-              <small>{issue.severity}</small>
-            </div>
-          ))}
-        </div>
-      )}
-      <p className="review-footnote">
-        {review.visual.method}. Visual assessment is subjective; media checks
-        are measured from the export.
-      </p>
-    </section>
   );
 }
 
