@@ -301,19 +301,23 @@ function RegisteredChat({ workspaceState, onAction, onError, chatEpoch }) {
       ]
     : workspaceState.runId
       ? [
+          [
+            "Demo 2 · Match colors",
+            "Make the indoor shots match the outdoor shots more naturally. Keep the same cuts, timing, and title. Render and review the updated video.",
+          ],
           explain,
           [
             "Stronger opening",
             "Revise this reel with a stronger opening using the existing footage. Keep the same duration, preserve natural colors, and render and review the new version.",
           ],
-          [
-            "Match colors",
-            "Revise this reel to match colors naturally across shots. Preserve the cuts and keep skin tones natural. Render and review the result.",
-          ],
           ["Add voiceover", "Open the voiceover controls for this video."],
           ["Download the reel", "Give me the finished MP4 for this reel."],
         ]
       : [
+          [
+            "Demo 1 · Create reel",
+            "Create a 15-second vertical reel about my day at the Gemini Argon hackathon. Start with arriving, show me building, and end with a human moment. Keep the original sound and use one minimal opening title.",
+          ],
           [
             "Find the story",
             "Plan the main story for this footage and show me a visual storyboard. Explain the hook and how to arrange the shots.",
@@ -336,20 +340,20 @@ function RegisteredChat({ workspaceState, onAction, onError, chatEpoch }) {
             <summary>Live demo guide</summary>
             <ol>
               <li>
-                <strong>Story.</strong> Start a New video and choose Find the
-                story.
+                <strong>Create.</strong> Choose Demo 1 · Create reel, preview
+                the prompt, then Send prompt.
               </li>
               <li>
-                <strong>Create.</strong> Choose Use my story plan, or Create a
-                video for an automatic cut.
+                <strong>Watch.</strong> Show the live Tool calls & decisions.
+                Wait for Video ready, then play a few seconds.
               </li>
               <li>
-                <strong>Refine.</strong> Try Stronger opening or Match colors.
-                Expand Tool calls & decisions to show real progress.
+                <strong>Edit once.</strong> Choose Demo 2 · Match colors, then
+                Send prompt. It preserves the cuts, timing, and title.
               </li>
               <li>
-                <strong>Deliver.</strong> Play the result, then choose Download
-                the reel.
+                <strong>Deliver.</strong> Wait for the updated video, play it,
+                then click Download MP4 in the result card.
               </li>
             </ol>
             <p>
@@ -362,8 +366,8 @@ function RegisteredChat({ workspaceState, onAction, onError, chatEpoch }) {
           {editing
             ? "While Argon works, explain the plan and show the live tool calls."
             : workspaceState.runId
-              ? "Show the story, make one change, then download the result."
-              : "Start with the story, then turn it into a video."}
+              ? "Demo step 2: match the colors, then play and download the result."
+              : "Demo step 1: create a 15-second hackathon reel. Color editing comes next."}
         </p>
         <div className="copilot-quick-actions" aria-label="Suggested prompts">
           {prompts.map(([label, prompt]) => (
